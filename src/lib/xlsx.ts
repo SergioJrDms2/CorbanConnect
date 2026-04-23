@@ -167,7 +167,7 @@ export async function parseContractsXlsx(file: File): Promise<ParsedXlsx> {
     const situacaoRaw = toString(r['Situação'])?.toUpperCase().trim();
 
     if (!nomeCliente) {
-      errors.push(`Linha ${lineNum}: "Nome Cliente" ausente.`);
+      // Linha de subtotal, agrupamento ou em branco — ignorar silenciosamente
       return;
     }
     if (!cpfRaw) {
