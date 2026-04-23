@@ -34,6 +34,8 @@ export interface ContractClient {
   cpf: string;
   phone: string;
   birth: string;
+  email?: string;
+  matricula?: string;
 }
 
 export interface Contract {
@@ -49,6 +51,33 @@ export interface Contract {
   lastUpdate: string;
   timeline: TimelineStep[];
   notifications: NotificationEvent[];
+
+  // Financial extras (from real xlsx)
+  tabela: string | null;
+  taxaJurosAm: number | null;
+  taxaCetAm: number | null;
+  valorComissao: number | null;
+  dataPrimeiroVcto: string | null;
+  dataUltimoVcto: string | null;
+  nroPropBanco: string | null;
+
+  // Employer
+  empregador: string | null;
+  orgaoSecretaria: string | null;
+
+  // People
+  gerenteRespPromotora: string | null;
+  usuarioDigitador: string | null;
+
+  // Location
+  cidade: string | null;
+  uf: string | null;
+
+  // Corban / matrix
+  corbanName: string | null;
+  nomeMatriz: string | null;
+  pontoDeVenda: string | null;
+  tipoProposta: string | null;
 }
 
 export type ViewId =
