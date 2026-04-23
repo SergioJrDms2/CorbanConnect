@@ -269,30 +269,56 @@ export async function parseContractsXlsx(file: File): Promise<ParsedXlsx> {
       last_update: lastUpdate,
       timeline: null,
       notifications: null,
-      // Extra fields stored for reference (not in the base ContractRow type but harmless)
-      // @ts-expect-error extended fields for system data
       matricula: toString(r['Matrícula']),
       nro_proposta_banco: nroPropBanco,
       tabela: toString(r['Tabela']),
       taxa_juros_am: toNumber(r['Taxa de Juros A.M.']),
+      taxa_juros_aa: toNumber(r['Taxa de Juros A.A.']),
       taxa_cet_am: toNumber(r['Taxa CET A.M.']),
+      taxa_cet_aa: toNumber(r['Taxa CET A.A.']),
       valor_comissao: comissao,
+      valor_iof: toNumber(r['Valor IOF']),
+      valor_financiado: toNumber(r['Valor Financiado']),
+      valor_ted: toNumber(r['Valor da TED']),
+      valor_segurado: toNumber(r['Valor Segurado']),
+      valor_seguro: toNumber(r['Valor Seguro']),
+      limite_total: toNumber(r['Limite Total']),
+      limite_compras: toNumber(r['Limite Compras']),
+      limite_saque: toNumber(r['Limite Saque']),
+      rmc: toNumber(r['RMC']),
       data_primeiro_vcto: normalizeDate(r['Data 1º Vcto']),
       data_ultimo_vcto: normalizeDate(r['Data Ult Vcto']),
+      data_digitacao: normalizeDate(r['Data Digitação']),
+      hora_digitacao: toString(r['Hora Digitação']),
       empregador: empregador,
       orgao_secretaria: toString(r['Órgão/Secretaria']),
+      codigo_empregador: toString(r['Código Empregador']),
+      sindicato: toString(r['Sindicato']),
       gerente_comercial: toString(r['Gerente Comercial']),
       gerente_resp_promotora: toString(r['Gerente Resp. Promotora']),
       usuario_digitador: toString(r['Usuário Digitador']),
       email_cliente: toString(r['E-Mail']),
+      rg_cliente: toString(r['RG']),
+      naturalidade: toString(r['Naturalidade']),
+      estado_civil: toString(r['Estado Civil']),
+      sexo: toString(r['Sexo']),
+      endereco: toString(r['Endereço']),
+      bairro: toString(r['Bairro']),
       cidade: toString(r['Cidade']),
       uf: toString(r['UF']),
+      cep: toString(r['CEP']),
       banco: toString(r['Banco']),
       agencia: toString(r['Agência']),
+      conta: toString(r['Conta']),
+      conta_dv: toString(r['DV']),
       atividade: toString(r['Atividade']),
       tipo_proposta: toString(r['Tipo Proposta']),
       nome_matriz: toString(r['NOME MATRIZ']),
       ponto_de_venda: toString(r['Ponto de Venda']),
+      nro_cartao: toString(r['Nro Cartão']),
+      id_formalizacao: toString(r['ID Formalização']),
+      cpf_repr_legal: toString(r['CPF Repr Legal']),
+      nome_repr_legal: toString(r['Nome Repr Legal']),
     });
   });
 
@@ -327,13 +353,7 @@ function parseLegacyFormat(
   const rows: ContractRow[] = [];
 
   const firstRow = records[0];
-  const missing = LEGACY_COLUMNS.filter(
-    (col) =>
-      !(col in firstRow) &&
-      col !== 'client_phone' &&
-      col !== 'client_birth' &&
-      col !== 'corban_name',
-  );
+  const missing = LEGACY_COLUMNS.filter((col) => !(col in firstRow));
   if (missing.length > 0) {
     errors.push(`Colunas obrigatórias ausentes no template legado: ${missing.join(', ')}.`);
   }
