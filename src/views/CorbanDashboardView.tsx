@@ -34,6 +34,7 @@ const FILTERS: FilterOption[] = [
   { id: 'credit_analysis', label: 'Análise de Crédito' },
   { id: 'at_risk', label: 'Em Risco' },
   { id: 'formalized', label: 'Formalizado' },
+  { id: 'canceled', label: 'Cancelado / Redigitar' },
 ];
 
 export function CorbanDashboardView({ onBack, onOpenContract }: CorbanDashboardViewProps) {
@@ -59,11 +60,18 @@ export function CorbanDashboardView({ onBack, onOpenContract }: CorbanDashboardV
       acc[c.status] = (acc[c.status] ?? 0) + 1;
       return acc;
     }, {});
+    const needsAction = contracts.filter(
+      (c) =>
+        c.pendency ||
+        (c.status === 'canceled' && (c.motivoRecusa || c.ultimaObservacao)),
+    ).length;
     return {
       total: contracts.length,
       pending: counts.pending_docs ?? 0,
       risk: counts.at_risk ?? 0,
+      canceled: counts.canceled ?? 0,
       formalized: counts.formalized ?? 0,
+      needsAction,
     };
   }, [contracts]);
 
@@ -100,11 +108,17 @@ export function CorbanDashboardView({ onBack, onOpenContract }: CorbanDashboardV
               Olá, Ricardo.
             </h1>
             <p className="mt-1 text-sm text-slate-600">
-              Você tem{' '}
-              <span className="font-semibold text-slate-900">
-                {stats.pending} contratos aguardando ação do cliente
-              </span>
-              . Já notificamos todos — fique de olho nos retornos.
+              {stats.needsAction > 0 ? (
+                <>
+                  Você tem{' '}
+                  <span className="font-semibold text-slate-900">
+                    {stats.needsAction} contratos com ação pendente
+                  </span>
+                  . Já notificamos os clientes — fique de olho nos retornos.
+                </>
+              ) : (
+                <>Todos os contratos em dia. Nenhuma pendência aberta no momento.</>
+              )}
             </p>
           </div>
           <div className="font-mono text-xs text-slate-500">
@@ -118,22 +132,21 @@ export function CorbanDashboardView({ onBack, onOpenContract }: CorbanDashboardV
         </div>
 
         <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-          <KpiCard label="Contratos ativos" value={stats.total} icon={FileText} tone="violet" />
+          <KpiCard label="Contratos na carteira" value={stats.total} icon={FileText} tone="violet" />
           <KpiCard
-            label="Pendência documental"
-            value={stats.pending}
+            label="Ação pendente"
+            value={stats.needsAction}
             icon={FileClock}
             tone="amber"
           />
           <KpiCard
-            label="Em risco de cancelamento"
-            value={stats.risk}
+            label="Cancelados / Redigitar"
+            value={stats.canceled}
             icon={AlertTriangle}
             tone="red"
-            delta="+1 vs. ontem"
           />
           <KpiCard
-            label="Formalizados (mês)"
+            label="Integrados"
             value={stats.formalized}
             icon={FileCheck}
             tone="emerald"
@@ -234,39 +247,71 @@ interface ContractRowProps {
 
 function ContractRow({ contract, onOpen }: ContractRowProps) {
   const isRisk = contract.status === 'at_risk';
+  const isCanceled = contract.status === 'canceled';
+  const avatarClass = isRisk
+    ? 'bg-red-50 text-red-600'
+    : isCanceled
+      ? 'bg-slate-200 text-slate-500'
+      : 'bg-slate-100 text-slate-500';
+
+  const locationChip = [contract.cidade, contract.uf].filter(Boolean).join('/');
+  const propRef = contract.nroProposta ?? contract.id;
+
   return (
     <button
       onClick={onOpen}
       className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-slate-50/80"
     >
-      <div
-        className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
-          isRisk ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-500'
-        }`}
-      >
+      <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${avatarClass}`}>
         <User className="h-4 w-4" strokeWidth={2} />
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="truncate text-sm font-medium text-slate-900">
             {contract.client.name}
           </div>
-          <div className="font-mono text-[11px] text-slate-400">{contract.id}</div>
+          <div className="font-mono text-[11px] text-slate-400">
+            {contract.nroProposta ? `Prop. ${propRef}` : propRef}
+          </div>
         </div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-slate-500">
-          <span>{contract.product}</span>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+          <span className="truncate">{contract.tipoProduto ?? contract.product}</span>
           <span className="text-slate-300">·</span>
           <span>{formatBRL(contract.amount)}</span>
-          {contract.pendency && (
+          {contract.installments > 0 && (
             <>
               <span className="text-slate-300">·</span>
-              <span className={isRisk ? 'font-medium text-red-600' : 'text-amber-700'}>
-                {contract.pendency.type} · {contract.pendency.days} dias
-              </span>
+              <span>{contract.installments}x</span>
+            </>
+          )}
+          {contract.empregador && (
+            <>
+              <span className="text-slate-300">·</span>
+              <span className="truncate">{contract.empregador}</span>
+            </>
+          )}
+          {locationChip && (
+            <>
+              <span className="text-slate-300">·</span>
+              <span>{locationChip}</span>
             </>
           )}
         </div>
+        {(contract.pendency || contract.motivoRecusa) && (
+          <div
+            className={`mt-1 flex flex-wrap items-center gap-1.5 text-xs ${
+              isRisk ? 'text-red-600' : isCanceled ? 'text-slate-600' : 'text-amber-700'
+            }`}
+          >
+            <span className="font-medium">
+              {contract.pendency?.type ?? contract.motivoRecusa}
+            </span>
+            {contract.pendency && contract.pendency.days > 0 && (
+              <span className="opacity-80">· {contract.pendency.days} dias</span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="hidden sm:block">

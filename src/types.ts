@@ -36,6 +36,10 @@ export interface ContractClient {
   birth: string;
   email?: string;
   matricula?: string;
+  rg?: string | null;
+  naturalidade?: string | null;
+  estadoCivil?: string | null;
+  sexo?: string | null;
 }
 
 export interface Contract {
@@ -52,32 +56,76 @@ export interface Contract {
   timeline: TimelineStep[];
   notifications: NotificationEvent[];
 
-  // Financial extras (from real xlsx)
+  // ── Internal team observations ─────────────────────────────
+  ultimaObservacao: string | null;
+  motivoRecusa: string | null;
+  atividade: string | null;
+
+  // ── Proposal / identifiers ─────────────────────────────────
+  nroProposta: string | null;
+  nroPropBanco: string | null;
+  nroContratoExterno: string | null;
+  nroCartao: string | null;
+  idFormalizacao: string | null;
+
+  // ── Financial ──────────────────────────────────────────────
   tabela: string | null;
-  taxaJurosAm: number | null;
-  taxaCetAm: number | null;
+  valorSolicitado: number | null;
+  valorIof: number | null;
+  valorFinanciado: number | null;
+  valorTed: number | null;
   valorComissao: number | null;
+  valorSegurado: number | null;
+  valorSeguro: number | null;
+  rmc: number | null;
+  limiteTotal: number | null;
+  limiteCompras: number | null;
+  limiteSaque: number | null;
+
+  // ── Rates & schedule ───────────────────────────────────────
+  taxaJurosAm: number | null;
+  taxaJurosAa: number | null;
+  taxaCetAm: number | null;
+  taxaCetAa: number | null;
   dataPrimeiroVcto: string | null;
   dataUltimoVcto: string | null;
-  nroPropBanco: string | null;
+  dataDigitacao: string | null;
+  horaDigitacao: string | null;
 
-  // Employer
+  // ── Employer ───────────────────────────────────────────────
   empregador: string | null;
   orgaoSecretaria: string | null;
+  codigoEmpregador: string | null;
+  sindicato: string | null;
 
-  // People
+  // ── Team ───────────────────────────────────────────────────
+  gerenteComercial: string | null;
   gerenteRespPromotora: string | null;
   usuarioDigitador: string | null;
 
-  // Location
+  // ── Address ────────────────────────────────────────────────
+  endereco: string | null;
+  bairro: string | null;
   cidade: string | null;
   uf: string | null;
+  cep: string | null;
 
-  // Corban / matrix
+  // ── Banking ────────────────────────────────────────────────
+  banco: string | null;
+  agencia: string | null;
+  conta: string | null;
+  contaDv: string | null;
+
+  // ── Legal representative ──────────────────────────────────
+  cpfReprLegal: string | null;
+  nomeReprLegal: string | null;
+
+  // ── Corban / matrix ────────────────────────────────────────
   corbanName: string | null;
   nomeMatriz: string | null;
   pontoDeVenda: string | null;
   tipoProposta: string | null;
+  tipoProduto: string | null;
 }
 
 export type ViewId =

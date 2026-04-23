@@ -233,21 +233,28 @@ export async function parseContractsXlsx(file: File): Promise<ParsedXlsx> {
         : dataMovRaw
       : '—';
 
-    // Pendency
-    const motivoPendencia = toString(r['Motivo Recusa/Pendência']);
+    // Internal observations (always captured — never limited to pending_docs)
+    const motivoRecusa = toString(r['Motivo Recusa/Pendência']);
     const ultimaObservacao = toString(r['Última Observação']);
-    const hasPendency = status === 'pending_docs' && motivoPendencia;
 
-    // Pendency days: calculate from Data Movimentação to today
+    // Pendency banner is shown for:
+    //  - pending_docs with a motivo, OR
+    //  - canceled with a motivo that requires Corban action (REDIGITADA etc.)
+    const needsAction =
+      (status === 'pending_docs' && !!motivoRecusa) ||
+      (status === 'canceled' && !!motivoRecusa);
+    const pendencyDescription = ultimaObservacao ?? motivoRecusa;
+
+    // Days open since last movement
     let pendencyDays = 0;
-    if (hasPendency && dataMovRaw) {
+    if (needsAction && dataMovRaw) {
       const [dd, mm, yyyy] = dataMovRaw.split('/').map(Number);
       const movDate = new Date(yyyy, mm - 1, dd);
       const today = new Date();
       pendencyDays = Math.max(0, Math.floor((today.getTime() - movDate.getTime()) / 86400000));
     }
 
-    // Número da proposta banco
+    // Proposal identifiers (nroProposta/nroContratoExterno were derived above)
     const nroPropBanco = toString(r['Nro Proposta Banco']);
 
     rows.push({
@@ -263,19 +270,24 @@ export async function parseContractsXlsx(file: File): Promise<ParsedXlsx> {
       installment_value: installmentValue,
       status,
       status_label: STATUS_CONFIG[status]?.label ?? status,
-      pendency_type: hasPendency ? motivoPendencia : null,
-      pendency_description: hasPendency ? (ultimaObservacao ?? motivoPendencia) : null,
-      pendency_days: hasPendency ? pendencyDays : null,
+      pendency_type: needsAction ? motivoRecusa : null,
+      pendency_description: needsAction ? pendencyDescription : null,
+      pendency_days: needsAction ? pendencyDays : null,
       last_update: lastUpdate,
       timeline: null,
       notifications: null,
+      ultima_observacao: ultimaObservacao,
+      motivo_recusa: motivoRecusa,
       matricula: toString(r['Matrícula']),
+      nro_proposta: nroProposta,
       nro_proposta_banco: nroPropBanco,
+      nro_contrato_externo: nroContratoExterno,
       tabela: toString(r['Tabela']),
       taxa_juros_am: toNumber(r['Taxa de Juros A.M.']),
       taxa_juros_aa: toNumber(r['Taxa de Juros A.A.']),
       taxa_cet_am: toNumber(r['Taxa CET A.M.']),
       taxa_cet_aa: toNumber(r['Taxa CET A.A.']),
+      valor_solicitado: toNumber(r['Valor Solicitado']),
       valor_comissao: comissao,
       valor_iof: toNumber(r['Valor IOF']),
       valor_financiado: toNumber(r['Valor Financiado']),
@@ -313,6 +325,7 @@ export async function parseContractsXlsx(file: File): Promise<ParsedXlsx> {
       conta_dv: toString(r['DV']),
       atividade: toString(r['Atividade']),
       tipo_proposta: toString(r['Tipo Proposta']),
+      tipo_produto: tipoProduto,
       nome_matriz: toString(r['NOME MATRIZ']),
       ponto_de_venda: toString(r['Ponto de Venda']),
       nro_cartao: toString(r['Nro Cartão']),
@@ -400,13 +413,18 @@ function parseLegacyFormat(
       last_update: toString(r['last_update']),
       timeline: null,
       notifications: null,
+      ultima_observacao: toString(r['pendency_description']),
+      motivo_recusa: pendencyType,
       matricula: null,
+      nro_proposta: null,
       nro_proposta_banco: null,
+      nro_contrato_externo: null,
       tabela: null,
       taxa_juros_am: null,
       taxa_juros_aa: null,
       taxa_cet_am: null,
       taxa_cet_aa: null,
+      valor_solicitado: null,
       valor_comissao: null,
       valor_iof: null,
       valor_financiado: null,
@@ -444,6 +462,7 @@ function parseLegacyFormat(
       conta_dv: null,
       atividade: null,
       tipo_proposta: null,
+      tipo_produto: null,
       nome_matriz: null,
       ponto_de_venda: null,
       nro_cartao: null,

@@ -30,9 +30,15 @@ export interface ContractRow {
   timeline: TimelineStep[] | null;
   notifications: NotificationEvent[] | null;
 
+  // ── Internal team observations ────────────────────────────────────────
+  ultima_observacao: string | null;
+  motivo_recusa: string | null;
+
   // ── Identification ────────────────────────────────────────────────────
   matricula: string | null;
+  nro_proposta: string | null;
   nro_proposta_banco: string | null;
+  nro_contrato_externo: string | null;
 
   // ── Financial details ─────────────────────────────────────────────────
   tabela: string | null;
@@ -40,6 +46,7 @@ export interface ContractRow {
   taxa_juros_aa: number | null;
   taxa_cet_am: number | null;
   taxa_cet_aa: number | null;
+  valor_solicitado: number | null;
   valor_comissao: number | null;
   valor_iof: number | null;
   valor_financiado: number | null;
@@ -91,6 +98,7 @@ export interface ContractRow {
   // ── Proposal meta ─────────────────────────────────────────────────────
   atividade: string | null;
   tipo_proposta: string | null;
+  tipo_produto: string | null;
   nome_matriz: string | null;
   ponto_de_venda: string | null;
 
@@ -160,6 +168,10 @@ function rowToContract(row: ContractRow): Contract {
       birth: row.client_birth ?? '',
       email: row.email_cliente ?? '',
       matricula: row.matricula ?? '',
+      rg: row.rg_cliente ?? null,
+      naturalidade: row.naturalidade ?? null,
+      estadoCivil: row.estado_civil ?? null,
+      sexo: row.sexo ?? null,
     },
     product: row.product ?? '—',
     amount: Number(row.amount ?? 0),
@@ -172,32 +184,66 @@ function rowToContract(row: ContractRow): Contract {
     timeline,
     notifications: Array.isArray(row.notifications) ? row.notifications : [],
 
-    // Financial extras
+    ultimaObservacao: row.ultima_observacao ?? null,
+    motivoRecusa: row.motivo_recusa ?? null,
+    atividade: row.atividade ?? null,
+
+    nroProposta: row.nro_proposta ?? null,
+    nroPropBanco: row.nro_proposta_banco ?? null,
+    nroContratoExterno: row.nro_contrato_externo ?? null,
+    nroCartao: row.nro_cartao ?? null,
+    idFormalizacao: row.id_formalizacao ?? null,
+
     tabela: row.tabela ?? null,
-    taxaJurosAm: row.taxa_juros_am ?? null,
-    taxaCetAm: row.taxa_cet_am ?? null,
+    valorSolicitado: row.valor_solicitado ?? null,
+    valorIof: row.valor_iof ?? null,
+    valorFinanciado: row.valor_financiado ?? null,
+    valorTed: row.valor_ted ?? null,
     valorComissao: row.valor_comissao ?? null,
+    valorSegurado: row.valor_segurado ?? null,
+    valorSeguro: row.valor_seguro ?? null,
+    rmc: row.rmc ?? null,
+    limiteTotal: row.limite_total ?? null,
+    limiteCompras: row.limite_compras ?? null,
+    limiteSaque: row.limite_saque ?? null,
+
+    taxaJurosAm: row.taxa_juros_am ?? null,
+    taxaJurosAa: row.taxa_juros_aa ?? null,
+    taxaCetAm: row.taxa_cet_am ?? null,
+    taxaCetAa: row.taxa_cet_aa ?? null,
     dataPrimeiroVcto: row.data_primeiro_vcto ?? null,
     dataUltimoVcto: row.data_ultimo_vcto ?? null,
-    nroPropBanco: row.nro_proposta_banco ?? null,
+    dataDigitacao: row.data_digitacao ?? null,
+    horaDigitacao: row.hora_digitacao ?? null,
 
-    // Employer
     empregador: row.empregador ?? null,
     orgaoSecretaria: row.orgao_secretaria ?? null,
+    codigoEmpregador: row.codigo_empregador ?? null,
+    sindicato: row.sindicato ?? null,
 
-    // People
+    gerenteComercial: row.gerente_comercial ?? null,
     gerenteRespPromotora: row.gerente_resp_promotora ?? null,
     usuarioDigitador: row.usuario_digitador ?? null,
 
-    // Location
+    endereco: row.endereco ?? null,
+    bairro: row.bairro ?? null,
     cidade: row.cidade ?? null,
     uf: row.uf ?? null,
+    cep: row.cep ?? null,
 
-    // Corban
+    banco: row.banco ?? null,
+    agencia: row.agencia ?? null,
+    conta: row.conta ?? null,
+    contaDv: row.conta_dv ?? null,
+
+    cpfReprLegal: row.cpf_repr_legal ?? null,
+    nomeReprLegal: row.nome_repr_legal ?? null,
+
     corbanName: row.corban_name ?? null,
     nomeMatriz: row.nome_matriz ?? null,
     pontoDeVenda: row.ponto_de_venda ?? null,
     tipoProposta: row.tipo_proposta ?? null,
+    tipoProduto: row.tipo_produto ?? null,
   };
 }
 
@@ -221,56 +267,62 @@ export function contractToRow(c: Contract, corbanName?: string): ContractRow {
     last_update: c.lastUpdate,
     timeline: c.timeline,
     notifications: c.notifications,
+    ultima_observacao: c.ultimaObservacao ?? null,
+    motivo_recusa: c.motivoRecusa ?? null,
     matricula: c.client.matricula ?? null,
+    nro_proposta: c.nroProposta ?? null,
     nro_proposta_banco: c.nroPropBanco ?? null,
+    nro_contrato_externo: c.nroContratoExterno ?? null,
     tabela: c.tabela ?? null,
     taxa_juros_am: c.taxaJurosAm ?? null,
-    taxa_juros_aa: null,
+    taxa_juros_aa: c.taxaJurosAa ?? null,
     taxa_cet_am: c.taxaCetAm ?? null,
-    taxa_cet_aa: null,
+    taxa_cet_aa: c.taxaCetAa ?? null,
+    valor_solicitado: c.valorSolicitado ?? null,
     valor_comissao: c.valorComissao ?? null,
-    valor_iof: null,
-    valor_financiado: null,
-    valor_ted: null,
-    valor_segurado: null,
-    valor_seguro: null,
-    limite_total: null,
-    limite_compras: null,
-    limite_saque: null,
-    rmc: null,
+    valor_iof: c.valorIof ?? null,
+    valor_financiado: c.valorFinanciado ?? null,
+    valor_ted: c.valorTed ?? null,
+    valor_segurado: c.valorSegurado ?? null,
+    valor_seguro: c.valorSeguro ?? null,
+    limite_total: c.limiteTotal ?? null,
+    limite_compras: c.limiteCompras ?? null,
+    limite_saque: c.limiteSaque ?? null,
+    rmc: c.rmc ?? null,
     data_primeiro_vcto: c.dataPrimeiroVcto ?? null,
     data_ultimo_vcto: c.dataUltimoVcto ?? null,
-    data_digitacao: null,
-    hora_digitacao: null,
+    data_digitacao: c.dataDigitacao ?? null,
+    hora_digitacao: c.horaDigitacao ?? null,
     empregador: c.empregador ?? null,
     orgao_secretaria: c.orgaoSecretaria ?? null,
-    codigo_empregador: null,
-    sindicato: null,
-    gerente_comercial: null,
+    codigo_empregador: c.codigoEmpregador ?? null,
+    sindicato: c.sindicato ?? null,
+    gerente_comercial: c.gerenteComercial ?? null,
     gerente_resp_promotora: c.gerenteRespPromotora ?? null,
     usuario_digitador: c.usuarioDigitador ?? null,
     email_cliente: c.client.email ?? null,
-    rg_cliente: null,
-    naturalidade: null,
-    estado_civil: null,
-    sexo: null,
-    endereco: null,
-    bairro: null,
+    rg_cliente: c.client.rg ?? null,
+    naturalidade: c.client.naturalidade ?? null,
+    estado_civil: c.client.estadoCivil ?? null,
+    sexo: c.client.sexo ?? null,
+    endereco: c.endereco ?? null,
+    bairro: c.bairro ?? null,
     cidade: c.cidade ?? null,
     uf: c.uf ?? null,
-    cep: null,
-    banco: null,
-    agencia: null,
-    conta: null,
-    conta_dv: null,
-    atividade: null,
+    cep: c.cep ?? null,
+    banco: c.banco ?? null,
+    agencia: c.agencia ?? null,
+    conta: c.conta ?? null,
+    conta_dv: c.contaDv ?? null,
+    atividade: c.atividade ?? null,
     tipo_proposta: c.tipoProposta ?? null,
+    tipo_produto: c.tipoProduto ?? null,
     nome_matriz: c.nomeMatriz ?? null,
     ponto_de_venda: c.pontoDeVenda ?? null,
-    nro_cartao: null,
-    id_formalizacao: null,
-    cpf_repr_legal: null,
-    nome_repr_legal: null,
+    nro_cartao: c.nroCartao ?? null,
+    id_formalizacao: c.idFormalizacao ?? null,
+    cpf_repr_legal: c.cpfReprLegal ?? null,
+    nome_repr_legal: c.nomeReprLegal ?? null,
   };
 }
 

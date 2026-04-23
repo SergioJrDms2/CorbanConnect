@@ -1,15 +1,26 @@
 import {
   AlertCircle,
   ArrowLeft,
+  Banknote,
+  Briefcase,
+  Calendar,
   CheckCircle2,
+  Landmark,
   MessageSquare,
   Phone,
   User,
 } from 'lucide-react';
 import { Brand } from '../components/Brand';
 import { Card } from '../components/Card';
+import { Section } from '../components/Section';
 import { StatusBadge } from '../components/StatusBadge';
-import { formatBRL, maskCpf } from '../lib/format';
+import {
+  displayCpf,
+  formatBRL,
+  formatCurrencyOrDash,
+  formatOrDash,
+  maskCpf,
+} from '../lib/format';
 import type { Contract } from '../types';
 
 interface ClientStatusViewProps {
@@ -17,13 +28,33 @@ interface ClientStatusViewProps {
   onBack: () => void;
 }
 
-const defaultCorban = {
-  name: 'Ricardo Almeida',
-  phone: '(11) 98200-1234',
-};
+// Friendly message shown to the client when there's a motivo/observation —
+// deliberately avoids exposing raw internal jargon. The real text stays with
+// the Corban; the client just gets a clear call to action.
+function friendlyActionMessage(motivoRecusa: string | null): string {
+  const m = (motivoRecusa ?? '').toUpperCase();
+  if (m.includes('REDIGITADA') || m.includes('REDIGITAR')) {
+    return 'Sua proposta precisa ser ajustada. Seu correspondente bancário está providenciando os ajustes.';
+  }
+  if (m.includes('DOC') || m.includes('HOLERITE') || m.includes('RG') || m.includes('COMPROVANTE')) {
+    return 'Seu contrato está aguardando o envio de um documento.';
+  }
+  return 'Há uma atualização sobre seu contrato que precisa de atenção.';
+}
 
 export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
-  const corban = defaultCorban;
+  const corban = {
+    name: contract.corbanName ?? contract.pontoDeVenda ?? 'Seu correspondente',
+    phone: contract.gerenteRespPromotora ? '(DD) 0000-0000' : '(DD) 0000-0000',
+  };
+
+  const hasAction = !!contract.pendency;
+  const hasObservation =
+    !hasAction && (!!contract.motivoRecusa || !!contract.ultimaObservacao);
+
+  const installmentsText = contract.installments
+    ? `${contract.installments}x de ${formatBRL(contract.installmentValue)}`
+    : '—';
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -52,7 +83,8 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
           </p>
         </div>
 
-        {contract.pendency && (
+        {/* Action banner (pendência) */}
+        {hasAction && contract.pendency && (
           <Card className="mb-6 border-amber-200 bg-amber-50/40 p-5">
             <div className="flex gap-4">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-amber-100">
@@ -60,12 +92,13 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
               </div>
               <div className="flex-1">
                 <div className="mb-1 text-sm font-semibold text-slate-900">
-                  Seu contrato está aguardando documentação.
+                  {friendlyActionMessage(contract.motivoRecusa)}
                 </div>
-                <div className="mb-3 text-sm leading-relaxed text-slate-700">
-                  <span className="font-medium">{contract.pendency.type}:</span>{' '}
-                  {contract.pendency.description}
-                </div>
+                {contract.motivoRecusa && (
+                  <div className="mb-2 text-xs font-medium text-amber-800">
+                    Motivo: {contract.motivoRecusa}
+                  </div>
+                )}
                 <div className="text-xs font-medium text-amber-700">
                   Entre em contato com seu correspondente bancário para dar continuidade.
                 </div>
@@ -74,40 +107,44 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
           </Card>
         )}
 
+        {/* Informational observation (no action required) */}
+        {hasObservation && (
+          <Card className="mb-6 border-violet-100 bg-violet-50/50 p-5">
+            <div className="flex gap-4">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-violet-100">
+                <MessageSquare className="h-5 w-5 text-violet-700" strokeWidth={2} />
+              </div>
+              <div className="flex-1">
+                <div className="mb-1 text-sm font-semibold text-slate-900">
+                  Há uma atualização do banco sobre seu contrato.
+                </div>
+                <div className="text-xs text-violet-800">
+                  Fale com seu correspondente bancário para mais detalhes.
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
         <div className="grid gap-6 md:grid-cols-3">
           <div className="space-y-6 md:col-span-2">
+            {/* Contract summary */}
             <Card className="p-6">
-              <div className="mb-5 flex items-start justify-between">
-                <div>
+              <div className="mb-5 flex items-start justify-between gap-3">
+                <div className="min-w-0">
                   <div className="text-xs font-medium text-slate-500">Contrato</div>
                   <div className="mt-0.5 font-mono text-sm text-slate-900">{contract.id}</div>
                 </div>
                 <StatusBadge status={contract.status} />
               </div>
 
-              <div className="grid grid-cols-2 gap-5 border-b border-slate-100 pb-5">
-                <div>
-                  <div className="text-xs text-slate-500">Produto</div>
-                  <div className="mt-1 text-sm font-medium text-slate-900">{contract.product}</div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-500">Valor contratado</div>
-                  <div className="mt-1 text-sm font-medium text-slate-900">
-                    {formatBRL(contract.amount)}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-500">Parcelas</div>
-                  <div className="mt-1 text-sm font-medium text-slate-900">
-                    {contract.installments}x de {formatBRL(contract.installmentValue)}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-xs text-slate-500">Última atualização</div>
-                  <div className="mt-1 font-mono text-sm font-medium text-slate-900">
-                    {contract.lastUpdate}
-                  </div>
-                </div>
+              <div className="grid grid-cols-2 gap-5 border-b border-slate-100 pb-5 sm:grid-cols-3">
+                <KV label="Produto" value={formatOrDash(contract.tipoProduto ?? contract.product)} />
+                <KV label="Valor liberado" value={formatBRL(contract.amount)} />
+                <KV label="Parcelas" value={installmentsText} />
+                <KV label="1º vencimento" value={formatOrDash(contract.dataPrimeiroVcto)} mono />
+                <KV label="Último vencimento" value={formatOrDash(contract.dataUltimoVcto)} mono />
+                <KV label="Atualizado em" value={contract.lastUpdate} mono />
               </div>
 
               <div className="mt-5">
@@ -151,6 +188,69 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
                 </div>
               </div>
             </Card>
+
+            {/* Employer / institution */}
+            {(contract.empregador || contract.orgaoSecretaria) && (
+              <Section title="Consignação" icon={Briefcase}>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  <KV label="Empregador" value={formatOrDash(contract.empregador)} />
+                  <KV label="Órgão / Secretaria" value={formatOrDash(contract.orgaoSecretaria)} />
+                  <KV label="Matrícula" value={formatOrDash(contract.client.matricula)} mono />
+                  {contract.tipoProposta && (
+                    <KV label="Tipo da proposta" value={contract.tipoProposta} />
+                  )}
+                </div>
+              </Section>
+            )}
+
+            {/* Financial summary (friendly, no commission/IOF noise) */}
+            <Section title="Resumo financeiro" icon={Banknote}>
+              <div className="grid gap-5 sm:grid-cols-3">
+                <KV label="Valor solicitado" value={formatCurrencyOrDash(contract.valorSolicitado)} />
+                <KV label="Valor liberado" value={formatBRL(contract.amount)} />
+                <KV label="Valor financiado" value={formatCurrencyOrDash(contract.valorFinanciado)} />
+                <KV label="Prazo" value={contract.installments ? `${contract.installments} meses` : '—'} />
+                <KV label="Parcela" value={contract.installmentValue ? formatBRL(contract.installmentValue) : '—'} />
+                {contract.rmc ? (
+                  <KV label="Reserva margem (RMC)" value={formatCurrencyOrDash(contract.rmc)} />
+                ) : null}
+              </div>
+            </Section>
+
+            {/* Bank destination — reassures client where money will arrive */}
+            {(contract.banco || contract.agencia || contract.conta) && (
+              <Section title="Conta para depósito" icon={Landmark}>
+                <div className="grid gap-5 sm:grid-cols-3">
+                  <KV label="Banco" value={formatOrDash(contract.banco)} mono />
+                  <KV label="Agência" value={formatOrDash(contract.agencia)} mono />
+                  <KV
+                    label="Conta"
+                    value={
+                      contract.conta
+                        ? `${contract.conta}${contract.contaDv ? '-' + contract.contaDv : ''}`
+                        : '—'
+                    }
+                    mono
+                  />
+                </div>
+                <div className="mt-3 text-xs text-slate-500">
+                  Confira se estes dados batem com sua conta. Qualquer divergência, avise seu
+                  correspondente antes da liberação.
+                </div>
+              </Section>
+            )}
+
+            {/* Proposal reference */}
+            <Section title="Identificação da proposta" icon={Calendar}>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <KV label="Nº da proposta" value={formatOrDash(contract.nroProposta)} mono />
+                <KV label="Nº no banco" value={formatOrDash(contract.nroPropBanco)} mono />
+                {contract.nroContratoExterno && (
+                  <KV label="Contrato externo" value={contract.nroContratoExterno} mono />
+                )}
+                {contract.nroCartao && <KV label="Nº cartão" value={contract.nroCartao} mono />}
+              </div>
+            </Section>
           </div>
 
           <div>
@@ -162,8 +262,8 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
                 <div className="grid h-10 w-10 place-items-center rounded-full bg-white/15">
                   <User className="h-5 w-5 text-white" strokeWidth={2} />
                 </div>
-                <div>
-                  <div className="font-semibold">{corban.name}</div>
+                <div className="min-w-0">
+                  <div className="truncate font-semibold">{corban.name}</div>
                   <div className="mt-0.5 text-xs text-violet-200">Ponto de contato dedicado</div>
                 </div>
               </div>
@@ -178,19 +278,52 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
                   href="#"
                   className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-white/10"
                 >
-                  <Phone className="h-4 w-4" />{' '}
-                  <span className="font-mono">{corban.phone}</span>
+                  <Phone className="h-4 w-4" /> <span className="font-mono">{corban.phone}</span>
                 </a>
               </div>
             </Card>
 
             <div className="mt-4 rounded-lg bg-slate-100 px-4 py-3 text-xs leading-relaxed text-slate-600">
               Qualquer dúvida sobre seu contrato, fale diretamente com{' '}
-              {corban.name.split(' ')[0]}. Ele é seu ponto de contato dedicado para esta operação.
+              {corban.name.split(' ')[0]}. Este é seu ponto de contato dedicado para esta
+              operação.
             </div>
+
+            {/* Personal info (mostly read-only confirmation) */}
+            <Card className="mt-4 p-5">
+              <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Seus dados
+              </div>
+              <div className="space-y-2 text-sm">
+                <KV label="Nome" value={contract.client.name} />
+                <KV label="CPF" value={displayCpf(contract.client.cpf)} mono />
+                <KV label="Nascimento" value={formatOrDash(contract.client.birth)} mono />
+                {contract.client.phone && (
+                  <KV label="Telefone" value={contract.client.phone} mono />
+                )}
+                {contract.client.email && <KV label="E-mail" value={contract.client.email} />}
+              </div>
+            </Card>
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+interface KVProps {
+  label: string;
+  value: string;
+  mono?: boolean;
+}
+
+function KV({ label, value, mono = false }: KVProps) {
+  return (
+    <div>
+      <div className="text-xs text-slate-500">{label}</div>
+      <div className={`mt-1 text-sm text-slate-900 ${mono ? 'font-mono' : 'font-medium'}`}>
+        {value}
+      </div>
     </div>
   );
 }
