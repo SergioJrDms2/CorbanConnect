@@ -17,7 +17,7 @@ export function Brand({ small = false, white = false }: BrandProps) {
         <div
           className={`font-semibold tracking-tight ${white ? 'text-white' : 'text-slate-900'}`}
         >
-          Corban <span className="text-violet-600">Connect</span>
+          Star <span className="text-violet-600">Connect</span>
         </div>
         {!small && (
           <div className="mt-1 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
