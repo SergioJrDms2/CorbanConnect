@@ -9,20 +9,21 @@ import {
 import { Brand } from '../components/Brand';
 import { Card } from '../components/Card';
 import { StatusBadge } from '../components/StatusBadge';
-import { MOCK_CONTRACTS } from '../data/mockContracts';
 import { formatBRL, maskCpf } from '../lib/format';
+import type { Contract } from '../types';
 
 interface ClientStatusViewProps {
+  contract: Contract;
   onBack: () => void;
 }
 
-const corban = {
+const defaultCorban = {
   name: 'Ricardo Almeida',
   phone: '(11) 98200-1234',
 };
 
-export function ClientStatusView({ onBack }: ClientStatusViewProps) {
-  const contract = MOCK_CONTRACTS[0];
+export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
+  const corban = defaultCorban;
 
   return (
     <div className="min-h-screen bg-slate-50">

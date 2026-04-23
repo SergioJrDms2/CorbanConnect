@@ -58,6 +58,7 @@ export type ViewId =
   | 'corban-login'
   | 'corban-dashboard'
   | 'corban-contract'
+  | 'internal-login'
   | 'internal-dashboard'
   | 'notifications';
 

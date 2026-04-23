@@ -13,7 +13,7 @@ import {
 import { Brand } from '../components/Brand';
 import { Card } from '../components/Card';
 import { StatusBadge } from '../components/StatusBadge';
-import { MOCK_CONTRACTS } from '../data/mockContracts';
+import { useContracts } from '../hooks/useContracts';
 import { colorMap } from '../lib/theme';
 import { formatBRL } from '../lib/format';
 import type { Contract, ContractStatus, ToneColor } from '../types';
@@ -37,11 +37,12 @@ const FILTERS: FilterOption[] = [
 ];
 
 export function CorbanDashboardView({ onBack, onOpenContract }: CorbanDashboardViewProps) {
+  const { contracts, loading, error } = useContracts();
   const [statusFilter, setStatusFilter] = useState<FilterOption['id']>('all');
   const [search, setSearch] = useState('');
 
   const filtered = useMemo(() => {
-    return MOCK_CONTRACTS.filter((c) => {
+    return contracts.filter((c) => {
       const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
       const q = search.trim().toLowerCase();
       const matchesQuery =
@@ -51,20 +52,20 @@ export function CorbanDashboardView({ onBack, onOpenContract }: CorbanDashboardV
         c.client.cpf.includes(q);
       return matchesStatus && matchesQuery;
     });
-  }, [statusFilter, search]);
+  }, [contracts, statusFilter, search]);
 
   const stats = useMemo(() => {
-    const counts = MOCK_CONTRACTS.reduce<Record<string, number>>((acc, c) => {
+    const counts = contracts.reduce<Record<string, number>>((acc, c) => {
       acc[c.status] = (acc[c.status] ?? 0) + 1;
       return acc;
     }, {});
     return {
-      total: MOCK_CONTRACTS.length,
+      total: contracts.length,
       pending: counts.pending_docs ?? 0,
       risk: counts.at_risk ?? 0,
       formalized: counts.formalized ?? 0,
     };
-  }, []);
+  }, [contracts]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -169,14 +170,24 @@ export function CorbanDashboardView({ onBack, onOpenContract }: CorbanDashboardV
 
         <Card>
           <div className="divide-y divide-slate-100">
-            {filtered.length === 0 && (
+            {loading && (
+              <div className="p-10 text-center text-sm text-slate-500">
+                Carregando contratos…
+              </div>
+            )}
+            {!loading && error && (
+              <div className="p-10 text-center text-sm text-red-600">{error}</div>
+            )}
+            {!loading && !error && filtered.length === 0 && (
               <div className="p-10 text-center text-sm text-slate-500">
                 Nenhum contrato encontrado para este filtro.
               </div>
             )}
-            {filtered.map((c) => (
-              <ContractRow key={c.id} contract={c} onOpen={() => onOpenContract(c)} />
-            ))}
+            {!loading &&
+              !error &&
+              filtered.map((c) => (
+                <ContractRow key={c.id} contract={c} onOpen={() => onOpenContract(c)} />
+              ))}
           </div>
         </Card>
 

@@ -1,20 +1,43 @@
 import { useState } from 'react';
-import { ArrowLeft, FileText, Search, Shield } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, FileText, Search, Shield } from 'lucide-react';
 import { Brand } from '../components/Brand';
 import { Card } from '../components/Card';
 import { PrimaryButton } from '../components/Buttons';
 import { formatBirth, formatCpf } from '../lib/format';
+import { fetchContractByCpfAndBirth } from '../lib/contracts';
+import type { Contract } from '../types';
 
 interface ClientLoginViewProps {
   onBack: () => void;
-  onLogin: (cpf: string) => void;
+  onLogin: (contract: Contract) => void;
 }
 
 export function ClientLoginView({ onBack, onLogin }: ClientLoginViewProps) {
   const [cpf, setCpf] = useState('');
   const [birth, setBirth] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const canSubmit = cpf.replace(/\D/g, '').length === 11 && birth.length >= 8;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!canSubmit) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const contract = await fetchContractByCpfAndBirth(cpf, birth);
+      if (!contract) {
+        setError('Não encontramos nenhum contrato com esse CPF e data de nascimento.');
+        return;
+      }
+      onLogin(contract);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Falha ao consultar contrato.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
@@ -31,7 +54,7 @@ export function ClientLoginView({ onBack, onLogin }: ClientLoginViewProps) {
       </header>
 
       <div className="flex flex-1 items-center justify-center p-6">
-        <div className="w-full max-w-md">
+        <form onSubmit={handleSubmit} className="w-full max-w-md">
           <div className="mb-8 text-center">
             <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-full bg-violet-50">
               <FileText className="h-5 w-5 text-violet-600" strokeWidth={2} />
@@ -70,17 +93,18 @@ export function ClientLoginView({ onBack, onLogin }: ClientLoginViewProps) {
                   className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 font-mono text-sm text-slate-900 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-100"
                 />
               </div>
-              <PrimaryButton
-                full
-                disabled={!canSubmit}
-                onClick={() => onLogin(cpf)}
-                icon={Search}
-              >
-                Consultar
+              {error && (
+                <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5" />
+                  <span>{error}</span>
+                </div>
+              )}
+              <PrimaryButton full disabled={!canSubmit || loading} icon={Search} type="submit">
+                {loading ? 'Consultando…' : 'Consultar'}
               </PrimaryButton>
               <p className="pt-2 text-center text-xs leading-relaxed text-slate-400">
-                Use <span className="font-mono text-slate-600">123.456.789-01</span> e{' '}
-                <span className="font-mono text-slate-600">15/03/1968</span> para ver um exemplo.
+                Demo: <span className="font-mono text-slate-600">123.456.789-01</span> ·{' '}
+                <span className="font-mono text-slate-600">15/03/1968</span>.
               </p>
             </div>
           </Card>
@@ -88,7 +112,7 @@ export function ClientLoginView({ onBack, onLogin }: ClientLoginViewProps) {
           <div className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-500">
             <Shield className="h-3.5 w-3.5" /> Dados protegidos conforme LGPD · Lei 13.709/2018
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );

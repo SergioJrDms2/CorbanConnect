@@ -13,11 +13,14 @@ import {
 import { Brand } from '../components/Brand';
 import { Card } from '../components/Card';
 import { GhostButton } from '../components/Buttons';
+import { XlsxUpload } from '../components/XlsxUpload';
 import { colorMap } from '../lib/theme';
 import type { NotificationChannel, NotificationStatus, ToneColor } from '../types';
 
 interface InternalDashboardViewProps {
   onBack: () => void;
+  userEmail?: string | null;
+  onUploaded?: () => void;
 }
 
 interface LogEntry {
@@ -37,7 +40,7 @@ const LOG_ROWS: LogEntry[] = [
   { ts: '22/04/2026 · 08:15', ch: 'whatsapp', ctr: 'CTR-2026-00398', reg: 'D+0', status: 'read' },
 ];
 
-export function InternalDashboardView({ onBack }: InternalDashboardViewProps) {
+export function InternalDashboardView({ onBack, userEmail, onUploaded }: InternalDashboardViewProps) {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
@@ -53,7 +56,8 @@ export function InternalDashboardView({ onBack }: InternalDashboardViewProps) {
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 text-xs text-slate-600 sm:flex">
-              <Shield className="h-3.5 w-3.5" /> Lucas · Operações
+              <Shield className="h-3.5 w-3.5" />
+              <span className="max-w-[180px] truncate">{userEmail ?? 'Operações · Starbank'}</span>
             </div>
             <button
               onClick={onBack}
@@ -118,6 +122,10 @@ export function InternalDashboardView({ onBack }: InternalDashboardViewProps) {
             trendLabel="estável"
             icon={Gauge}
           />
+        </div>
+
+        <div className="mb-6">
+          <XlsxUpload onUploaded={onUploaded} />
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
