@@ -1,0 +1,267 @@
+import { useMemo, useState } from 'react';
+import type { LucideIcon } from 'lucide-react';
+import {
+  AlertTriangle,
+  ChevronRight,
+  FileCheck,
+  FileClock,
+  FileText,
+  LogOut,
+  Search,
+  User,
+} from 'lucide-react';
+import { Brand } from '../components/Brand';
+import { Card } from '../components/Card';
+import { StatusBadge } from '../components/StatusBadge';
+import { MOCK_CONTRACTS } from '../data/mockContracts';
+import { colorMap } from '../lib/theme';
+import { formatBRL } from '../lib/format';
+import type { Contract, ContractStatus, ToneColor } from '../types';
+
+interface CorbanDashboardViewProps {
+  onBack: () => void;
+  onOpenContract: (c: Contract) => void;
+}
+
+interface FilterOption {
+  id: 'all' | ContractStatus;
+  label: string;
+}
+
+const FILTERS: FilterOption[] = [
+  { id: 'all', label: 'Todos' },
+  { id: 'pending_docs', label: 'Pendência Documental' },
+  { id: 'credit_analysis', label: 'Análise de Crédito' },
+  { id: 'at_risk', label: 'Em Risco' },
+  { id: 'formalized', label: 'Formalizado' },
+];
+
+export function CorbanDashboardView({ onBack, onOpenContract }: CorbanDashboardViewProps) {
+  const [statusFilter, setStatusFilter] = useState<FilterOption['id']>('all');
+  const [search, setSearch] = useState('');
+
+  const filtered = useMemo(() => {
+    return MOCK_CONTRACTS.filter((c) => {
+      const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
+      const q = search.trim().toLowerCase();
+      const matchesQuery =
+        !q ||
+        c.client.name.toLowerCase().includes(q) ||
+        c.id.toLowerCase().includes(q) ||
+        c.client.cpf.includes(q);
+      return matchesStatus && matchesQuery;
+    });
+  }, [statusFilter, search]);
+
+  const stats = useMemo(() => {
+    const counts = MOCK_CONTRACTS.reduce<Record<string, number>>((acc, c) => {
+      acc[c.status] = (acc[c.status] ?? 0) + 1;
+      return acc;
+    }, {});
+    return {
+      total: MOCK_CONTRACTS.length,
+      pending: counts.pending_docs ?? 0,
+      risk: counts.at_risk ?? 0,
+      formalized: counts.formalized ?? 0,
+    };
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <header className="sticky top-0 z-10 border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
+          <div className="flex items-center gap-6">
+            <Brand small />
+            <div className="hidden items-center gap-1 text-xs md:flex">
+              <span className="text-slate-400">/</span>
+              <span className="ml-1 font-medium text-slate-700">Painel do Corban</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 text-xs text-slate-600 sm:flex">
+              <User className="h-3.5 w-3.5" /> Ricardo Almeida
+            </div>
+            <button
+              onClick={onBack}
+              className="p-2 text-slate-500 hover:text-slate-900"
+              aria-label="Sair"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-7xl px-6 py-8">
+        <div className="mb-8 flex flex-wrap items-start justify-between gap-6">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+              Olá, Ricardo.
+            </h1>
+            <p className="mt-1 text-sm text-slate-600">
+              Você tem{' '}
+              <span className="font-semibold text-slate-900">
+                {stats.pending} contratos aguardando ação do cliente
+              </span>
+              . Já notificamos todos — fique de olho nos retornos.
+            </p>
+          </div>
+          <div className="font-mono text-xs text-slate-500">
+            {new Date().toLocaleDateString('pt-BR', {
+              weekday: 'long',
+              day: '2-digit',
+              month: 'long',
+              year: 'numeric',
+            })}
+          </div>
+        </div>
+
+        <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+          <KpiCard label="Contratos ativos" value={stats.total} icon={FileText} tone="violet" />
+          <KpiCard
+            label="Pendência documental"
+            value={stats.pending}
+            icon={FileClock}
+            tone="amber"
+          />
+          <KpiCard
+            label="Em risco de cancelamento"
+            value={stats.risk}
+            icon={AlertTriangle}
+            tone="red"
+            delta="+1 vs. ontem"
+          />
+          <KpiCard
+            label="Formalizados (mês)"
+            value={stats.formalized}
+            icon={FileCheck}
+            tone="emerald"
+          />
+        </div>
+
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[220px] max-w-md flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nome, CPF ou contrato…"
+              className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+            />
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {FILTERS.map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setStatusFilter(f.id)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                  statusFilter === f.id
+                    ? 'bg-slate-900 text-white'
+                    : 'border border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <Card>
+          <div className="divide-y divide-slate-100">
+            {filtered.length === 0 && (
+              <div className="p-10 text-center text-sm text-slate-500">
+                Nenhum contrato encontrado para este filtro.
+              </div>
+            )}
+            {filtered.map((c) => (
+              <ContractRow key={c.id} contract={c} onOpen={() => onOpenContract(c)} />
+            ))}
+          </div>
+        </Card>
+
+        <div className="mt-6 text-xs text-slate-400">
+          Sincronizado com core bancário · última atualização há 3 min · SLA &lt; 10 min
+        </div>
+      </main>
+    </div>
+  );
+}
+
+interface KpiCardProps {
+  label: string;
+  value: number;
+  icon: LucideIcon;
+  tone?: ToneColor;
+  delta?: string;
+}
+
+function KpiCard({ label, value, icon: Icon, tone = 'violet', delta }: KpiCardProps) {
+  const c = colorMap[tone];
+  return (
+    <Card className="p-5">
+      <div className="mb-3 flex items-center justify-between">
+        <div className={`grid h-9 w-9 place-items-center rounded-lg ${c.bg}`}>
+          <Icon className={`h-4 w-4 ${c.text}`} strokeWidth={2} />
+        </div>
+        {delta && (
+          <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600">
+            {delta}
+          </span>
+        )}
+      </div>
+      <div className="text-2xl font-semibold tracking-tight text-slate-900">{value}</div>
+      <div className="mt-1 text-xs text-slate-500">{label}</div>
+    </Card>
+  );
+}
+
+interface ContractRowProps {
+  contract: Contract;
+  onOpen: () => void;
+}
+
+function ContractRow({ contract, onOpen }: ContractRowProps) {
+  const isRisk = contract.status === 'at_risk';
+  return (
+    <button
+      onClick={onOpen}
+      className="flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-slate-50/80"
+    >
+      <div
+        className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
+          isRisk ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-500'
+        }`}
+      >
+        <User className="h-4 w-4" strokeWidth={2} />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="truncate text-sm font-medium text-slate-900">
+            {contract.client.name}
+          </div>
+          <div className="font-mono text-[11px] text-slate-400">{contract.id}</div>
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+          <span>{contract.product}</span>
+          <span className="text-slate-300">·</span>
+          <span>{formatBRL(contract.amount)}</span>
+          {contract.pendency && (
+            <>
+              <span className="text-slate-300">·</span>
+              <span className={isRisk ? 'font-medium text-red-600' : 'text-amber-700'}>
+                {contract.pendency.type} · {contract.pendency.days} dias
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="hidden sm:block">
+        <StatusBadge status={contract.status} />
+      </div>
+      <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" />
+    </button>
+  );
+}
