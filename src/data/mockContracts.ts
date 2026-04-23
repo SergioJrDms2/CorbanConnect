@@ -18,7 +18,7 @@ const EXTRA_NULLS = {
   nomeMatriz: null,
   pontoDeVenda: null,
   tipoProposta: null,
-} as const;
+};
 
 export const MOCK_CONTRACTS: Contract[] = [
   {
