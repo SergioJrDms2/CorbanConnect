@@ -1,5 +1,25 @@
 import type { Contract } from '../types';
 
+const EXTRA_NULLS = {
+  tabela: null,
+  taxaJurosAm: null,
+  taxaCetAm: null,
+  valorComissao: null,
+  dataPrimeiroVcto: null,
+  dataUltimoVcto: null,
+  nroPropBanco: null,
+  empregador: null,
+  orgaoSecretaria: null,
+  gerenteRespPromotora: null,
+  usuarioDigitador: null,
+  cidade: null,
+  uf: null,
+  corbanName: null,
+  nomeMatriz: null,
+  pontoDeVenda: null,
+  tipoProposta: null,
+} as const;
+
 export const MOCK_CONTRACTS: Contract[] = [
   {
     id: 'CTR-2026-00412',
@@ -35,6 +55,7 @@ export const MOCK_CONTRACTS: Contract[] = [
       { channel: 'sms', date: '16/04/2026 · 10:32', status: 'delivered', reg: 'D+3 fallback' },
       { channel: 'whatsapp', date: '20/04/2026 · 10:30', status: 'read', reg: 'D+7 (Corban em cópia)' },
     ],
+    ...EXTRA_NULLS,
   },
   {
     id: 'CTR-2026-00398',
@@ -61,6 +82,7 @@ export const MOCK_CONTRACTS: Contract[] = [
       { step: 'Liberação', date: '—', done: false },
     ],
     notifications: [],
+    ...EXTRA_NULLS,
   },
   {
     id: 'CTR-2026-00387',
@@ -97,6 +119,7 @@ export const MOCK_CONTRACTS: Contract[] = [
       { channel: 'email', date: '13/04/2026 · 14:11', status: 'delivered', reg: 'D+7 secundário' },
       { channel: 'whatsapp', date: '21/04/2026 · 14:10', status: 'pending', reg: 'D+15 (Corban em cópia)' },
     ],
+    ...EXTRA_NULLS,
   },
   {
     id: 'CTR-2026-00376',
@@ -123,6 +146,7 @@ export const MOCK_CONTRACTS: Contract[] = [
       { step: 'Liberação', date: '—', done: false, current: true },
     ],
     notifications: [],
+    ...EXTRA_NULLS,
   },
   {
     id: 'CTR-2026-00365',
@@ -155,5 +179,6 @@ export const MOCK_CONTRACTS: Contract[] = [
     notifications: [
       { channel: 'whatsapp', date: '18/04/2026 · 10:05', status: 'read', reg: 'D+0' },
     ],
+    ...EXTRA_NULLS,
   },
 ];
