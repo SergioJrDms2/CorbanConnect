@@ -260,34 +260,40 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
           </div>
 
           <div>
-            <Card className="border-violet-600 bg-violet-600 p-5 text-white">
-              <div className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-200">
+            <Card
+              className="border-violet-500 p-5 text-white"
+              style={{ backgroundColor: '#7c3aed' }} // violet-600 garantido via inline
+            >
+              <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-violet-100">
                 Seu correspondente
               </div>
               <div className="mb-4 flex items-center gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-full bg-white/15">
+                <div className="grid h-10 w-10 place-items-center rounded-full bg-white/20 ring-2 ring-white/30">
                   <User className="h-5 w-5 text-white" strokeWidth={2} />
                 </div>
                 <div className="min-w-0">
-                  <div className="truncate font-semibold">{corban.name}</div>
-                  <div className="mt-0.5 text-xs text-violet-200">Ponto de contato dedicado</div>
+                  <div className="truncate text-base font-bold text-white">{corban.name}</div>
+                  <div className="mt-0.5 text-xs font-medium text-violet-100">
+                    Ponto de contato dedicado
+                  </div>
                 </div>
               </div>
-              <div className="space-y-2 border-t border-white/15 pt-4">
-                <a
+              <div className="space-y-1 border-t border-white/20 pt-4">
+                
                   href="#"
-                  className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-white/10"
+                  className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-medium text-white transition-colors hover:bg-white/15"
                 >
-                  <MessageSquare className="h-4 w-4" /> WhatsApp
+                  <MessageSquare className="h-4 w-4 shrink-0" /> WhatsApp
                 </a>
                 {corban.manager && (
-                  <div className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm">
-                    <Phone className="h-4 w-4" /> <span>{corban.manager}</span>
+                  <div className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-medium text-white">
+                    <Phone className="h-4 w-4 shrink-0" />
+                    <span>{corban.manager}</span>
                   </div>
                 )}
               </div>
             </Card>
-
+          
             <div className="mt-4 rounded-lg bg-slate-100 px-4 py-3 text-xs leading-relaxed text-slate-600">
               Qualquer dúvida sobre seu contrato, fale diretamente com{' '}
               {corban.name.split(' ')[0]}. Este é seu ponto de contato dedicado para esta
