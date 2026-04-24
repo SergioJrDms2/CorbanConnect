@@ -393,7 +393,7 @@ async function parseLegacyFormat(
   records: Record<string, unknown>[],
   errors: string[],
   warnings: string[],
-): ParsedXlsx {
+): Promise<ParsedXlsx> {
   const rows: ContractRow[] = [];
 
   const firstRow = records[0];
