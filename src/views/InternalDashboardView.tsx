@@ -15,7 +15,6 @@ import { XlsxUpload } from '../components/XlsxUpload';
 import { colorMap } from '../lib/theme';
 import { useInternalMetrics, type RecentDispatch } from '../hooks/useInternalMetrics';
 import type { NotificationChannel, NotificationStatus, ToneColor } from '../types';
-import { CorbanCnpjEnricher } from '../components/CorbanCnpjEnricher';
 
 interface InternalDashboardViewProps {
   onBack: () => void;
@@ -106,10 +105,6 @@ export function InternalDashboardView({ onBack, userEmail, onUploaded }: Interna
 
         <div className="mb-6">
           <XlsxUpload onUploaded={onUploaded} />
-        </div>
-
-        <div className="mb-6">
-          <CorbanCnpjEnricher />
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
