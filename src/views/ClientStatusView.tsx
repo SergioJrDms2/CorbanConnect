@@ -28,9 +28,6 @@ interface ClientStatusViewProps {
   onBack: () => void;
 }
 
-// Friendly message shown to the client when there's a motivo/observation —
-// deliberately avoids exposing raw internal jargon. The real text stays with
-// the Corban; the client just gets a clear call to action.
 function friendlyActionMessage(motivoRecusa: string | null): string {
   const m = (motivoRecusa ?? '').toUpperCase();
   if (m.includes('REDIGITADA') || m.includes('REDIGITAR')) {
@@ -43,8 +40,6 @@ function friendlyActionMessage(motivoRecusa: string | null): string {
 }
 
 export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
-  // "Seu correspondente" information derived from the real XLSX fields.
-  // Display priority: Ponto de Venda > NOME PROMOTORA (company name part).
   const corbanDisplayName =
     contract.pontoDeVenda ??
     (contract.corbanName ? contract.corbanName.replace(/^\d[\d.\-/]*\s*/, '') : null) ??
@@ -89,7 +84,6 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
           </p>
         </div>
 
-        {/* Action banner (pendência) */}
         {hasAction && contract.pendency && (
           <Card className="mb-6 border-amber-200 bg-amber-50/40 p-5">
             <div className="flex gap-4">
@@ -113,7 +107,6 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
           </Card>
         )}
 
-        {/* Informational observation (no action required) */}
         {hasObservation && (
           <Card className="mb-6 border-violet-100 bg-violet-50/50 p-5">
             <div className="flex gap-4">
@@ -134,7 +127,6 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
 
         <div className="grid gap-6 md:grid-cols-3">
           <div className="space-y-6 md:col-span-2">
-            {/* Contract summary */}
             <Card className="p-6">
               <div className="mb-5 flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -195,7 +187,6 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
               </div>
             </Card>
 
-            {/* Employer / institution */}
             {(contract.empregador || contract.orgaoSecretaria) && (
               <Section title="Consignação" icon={Briefcase}>
                 <div className="grid gap-5 sm:grid-cols-2">
@@ -209,7 +200,6 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
               </Section>
             )}
 
-            {/* Financial summary (friendly, no commission/IOF noise) */}
             <Section title="Resumo financeiro" icon={Banknote}>
               <div className="grid gap-5 sm:grid-cols-3">
                 <KV label="Valor solicitado" value={formatCurrencyOrDash(contract.valorSolicitado)} />
@@ -223,7 +213,6 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
               </div>
             </Section>
 
-            {/* Bank destination — reassures client where money will arrive */}
             {(contract.banco || contract.agencia || contract.conta) && (
               <Section title="Conta para depósito" icon={Landmark}>
                 <div className="grid gap-5 sm:grid-cols-3">
@@ -246,7 +235,6 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
               </Section>
             )}
 
-            {/* Proposal reference */}
             <Section title="Identificação da proposta" icon={Calendar}>
               <div className="grid gap-5 sm:grid-cols-2">
                 <KV label="Nº da proposta" value={formatOrDash(contract.nroProposta)} mono />
@@ -279,7 +267,7 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
                 </div>
               </div>
               <div className="space-y-1 border-t border-white/20 pt-4">
-  
+                <a
                   href="#"
                   className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-medium text-white transition-colors hover:bg-white/15"
                 >
@@ -293,14 +281,13 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
                 )}
               </div>
             </div>
-          
+
             <div className="mt-4 rounded-lg bg-slate-100 px-4 py-3 text-xs leading-relaxed text-slate-600">
               Qualquer dúvida sobre seu contrato, fale diretamente com{' '}
               {corban.name.split(' ')[0]}. Este é seu ponto de contato dedicado para esta
               operação.
             </div>
 
-            {/* Personal info (mostly read-only confirmation) */}
             <Card className="mt-4 p-5">
               <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500">
                 Seus dados
