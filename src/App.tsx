@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { HomeView } from './views/HomeView';
 import { ClientLoginView } from './views/ClientLoginView';
+import { ClientContractsListView } from './views/ClientContractsListView';
 import { ClientStatusView } from './views/ClientStatusView';
 import { CorbanLoginView } from './views/CorbanLoginView';
 import { CorbanDashboardView } from './views/CorbanDashboardView';
@@ -15,8 +16,17 @@ import type { Contract, ViewId } from './types';
 export default function App() {
   const [view, setView] = useState<ViewId>('home');
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
-  const [clientContract, setClientContract] = useState<Contract | null>(null);
+
+  // Client session: array of contracts belonging to the CPF+birth that logged in.
+  const [clientContracts, setClientContracts] = useState<Contract[]>([]);
+
+  // Corban session: the CNPJ the corban authenticated with.
+  const [corbanCnpj, setCorbanCnpj] = useState<string | null>(null);
+
+  // Internal (Supabase Auth) session.
   const [session, setSession] = useState<Session | null>(null);
+
+  // Force-refresh scoped dashboards when new XLSX is uploaded.
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -38,6 +48,27 @@ export default function App() {
     setView(target);
   }
 
+  function handleClientLogin(contracts: Contract[]) {
+    setClientContracts(contracts);
+    if (contracts.length === 1) {
+      setSelectedContract(contracts[0]);
+      setView('client-status');
+    } else {
+      setView('client-contracts');
+    }
+  }
+
+  function handleClientLogout() {
+    setClientContracts([]);
+    setSelectedContract(null);
+    setView('home');
+  }
+
+  function handleCorbanLogout() {
+    setCorbanCnpj(null);
+    setView('home');
+  }
+
   async function handleInternalLogout() {
     if (supabase) await supabase.auth.signOut();
     setView('home');
@@ -48,25 +79,41 @@ export default function App() {
       {view === 'home' && <HomeView onNavigate={handleNavigate} />}
 
       {view === 'client-login' && (
-        <ClientLoginView
-          onBack={goHome}
-          onLogin={(contract) => {
-            setClientContract(contract);
+        <ClientLoginView onBack={goHome} onLogin={handleClientLogin} />
+      )}
+      {view === 'client-contracts' && (
+        <ClientContractsListView
+          contracts={clientContracts}
+          onBack={handleClientLogout}
+          onOpen={(c) => {
+            setSelectedContract(c);
             setView('client-status');
           }}
         />
       )}
-      {view === 'client-status' && clientContract && (
-        <ClientStatusView contract={clientContract} onBack={goHome} />
+      {view === 'client-status' && selectedContract && (
+        <ClientStatusView
+          contract={selectedContract}
+          onBack={
+            clientContracts.length > 1 ? () => setView('client-contracts') : handleClientLogout
+          }
+        />
       )}
 
       {view === 'corban-login' && (
-        <CorbanLoginView onBack={goHome} onLogin={() => setView('corban-dashboard')} />
-      )}
-      {view === 'corban-dashboard' && (
-        <CorbanDashboardView
-          key={`corban-${reloadKey}`}
+        <CorbanLoginView
           onBack={goHome}
+          onLogin={({ cnpj }) => {
+            setCorbanCnpj(cnpj);
+            setView('corban-dashboard');
+          }}
+        />
+      )}
+      {view === 'corban-dashboard' && corbanCnpj && (
+        <CorbanDashboardView
+          key={`corban-${corbanCnpj}-${reloadKey}`}
+          cnpj={corbanCnpj}
+          onBack={handleCorbanLogout}
           onOpenContract={(c) => {
             setSelectedContract(c);
             setView('corban-contract');

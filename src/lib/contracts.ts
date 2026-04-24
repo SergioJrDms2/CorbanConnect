@@ -17,6 +17,7 @@ export interface ContractRow {
   client_phone: string | null;
   client_birth: string | null;
   corban_name: string | null;
+  corban_cnpj: string | null;
   product: string | null;
   amount: number | null;
   installments: number | null;
@@ -240,6 +241,7 @@ function rowToContract(row: ContractRow): Contract {
     nomeReprLegal: row.nome_repr_legal ?? null,
 
     corbanName: row.corban_name ?? null,
+    corbanCnpj: row.corban_cnpj ?? null,
     nomeMatriz: row.nome_matriz ?? null,
     pontoDeVenda: row.ponto_de_venda ?? null,
     tipoProposta: row.tipo_proposta ?? null,
@@ -255,6 +257,7 @@ export function contractToRow(c: Contract, corbanName?: string): ContractRow {
     client_phone: c.client.phone || null,
     client_birth: c.client.birth || null,
     corban_name: corbanName ?? c.corbanName ?? null,
+    corban_cnpj: c.corbanCnpj ?? null,
     product: c.product,
     amount: c.amount,
     installments: c.installments,
@@ -343,41 +346,68 @@ export async function fetchContracts(): Promise<Contract[]> {
   return (data as ContractRow[]).map(rowToContract);
 }
 
-export async function fetchContractByCpfAndBirth(
+/**
+ * Look up ALL contracts belonging to a CPF + birth combination.
+ * A client can have multiple open contracts (e.g. cartão RMC + empréstimo).
+ */
+export async function fetchContractsByCpfAndBirth(
   cpf: string,
   birth: string,
-): Promise<Contract | null> {
+): Promise<Contract[]> {
   const normalizedCpf = cpf.replace(/\D/g, '');
 
-  if (!supabase) {
-    return (
-      MOCK_CONTRACTS.find(
-        (c) =>
-          c.client.cpf.replace(/\D/g, '') === normalizedCpf && c.client.birth === birth,
-      ) ?? null
+  const fromMock = () =>
+    MOCK_CONTRACTS.filter(
+      (c) =>
+        c.client.cpf.replace(/\D/g, '') === normalizedCpf && c.client.birth === birth,
     );
-  }
+
+  if (!supabase) return fromMock();
 
   const { data, error } = await supabase
     .from('contracts')
     .select('*')
     .eq('client_cpf', normalizedCpf)
     .eq('client_birth', birth)
-    .limit(1);
+    .order('updated_at', { ascending: false });
 
   if (error) {
-    console.error('Failed to fetch contract:', error.message);
-    return null;
+    console.error('Failed to fetch contracts:', error.message);
+    return [];
   }
-  if (!data || data.length === 0) {
-    return (
-      MOCK_CONTRACTS.find(
-        (c) =>
-          c.client.cpf.replace(/\D/g, '') === normalizedCpf && c.client.birth === birth,
-      ) ?? null
+  if (!data || data.length === 0) return fromMock();
+  return (data as ContractRow[]).map(rowToContract);
+}
+
+/**
+ * Look up ALL contracts belonging to a Corban by their CNPJ (the identifier
+ * extracted from the "NOME PROMOTORA" column of the XLSX — e.g. "64.839.379").
+ * Returns an empty array if none found. The Corban portal uses this as login:
+ * if at least one contract matches, the Corban is "authenticated".
+ */
+export async function fetchContractsByCorbanCnpj(cnpj: string): Promise<Contract[]> {
+  const normalized = cnpj.replace(/\D/g, '');
+  if (!normalized) return [];
+
+  const fromMock = () =>
+    MOCK_CONTRACTS.filter(
+      (c) => (c.corbanCnpj ?? '').replace(/\D/g, '') === normalized,
     );
+
+  if (!supabase) return fromMock();
+
+  const { data, error } = await supabase
+    .from('contracts')
+    .select('*')
+    .eq('corban_cnpj', normalized)
+    .order('updated_at', { ascending: false });
+
+  if (error) {
+    console.error('Failed to fetch contracts by corban:', error.message);
+    return [];
   }
-  return rowToContract(data[0] as ContractRow);
+  if (!data || data.length === 0) return fromMock();
+  return (data as ContractRow[]).map(rowToContract);
 }
 
 export interface UpsertResult {

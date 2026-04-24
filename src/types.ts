@@ -122,6 +122,7 @@ export interface Contract {
 
   // ── Corban / matrix ────────────────────────────────────────
   corbanName: string | null;
+  corbanCnpj: string | null;
   nomeMatriz: string | null;
   pontoDeVenda: string | null;
   tipoProposta: string | null;
@@ -131,6 +132,7 @@ export interface Contract {
 export type ViewId =
   | 'home'
   | 'client-login'
+  | 'client-contracts'
   | 'client-status'
   | 'corban-login'
   | 'corban-dashboard'

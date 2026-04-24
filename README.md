@@ -17,9 +17,23 @@ Plataforma de notificações automáticas e portal de acompanhamento de contrato
 
 | Portal | Persona | Acesso |
 | --- | --- | --- |
-| **Portal do Cliente** | Cliente final | CPF + data de nascimento |
-| **Painel do Corban** | Correspondente bancário | Credenciais Starbank |
+| **Portal do Cliente** | Cliente final | CPF + data de nascimento (sem cadastro) |
+| **Painel do Corban** | Correspondente bancário | CNPJ da promotora (sem cadastro) |
 | **Dashboard Interno** | Analista Starbank | E-mail + senha (Supabase Auth) |
+
+### Autenticação automática (sem cadastro)
+
+Tanto o cliente quanto o Corban acessam sem cadastro. A autenticação é
+derivada de dados que já existem no XLSX:
+
+- **Cliente**: CPF + data de nascimento → retorna todos os contratos em
+  aberto com esse CPF/nascimento. Se houver mais de um, é exibida uma lista.
+- **Corban**: CNPJ da promotora (extraído do campo `NOME PROMOTORA`,
+  ex. `64.839.379 EDLEA BARBOSA` → CNPJ `64839379`). O Corban enxerga
+  apenas os contratos vinculados ao CNPJ informado.
+
+Apenas o Dashboard Interno usa autenticação real (Supabase Auth com
+e-mail + senha), pois é onde se faz upload de dados.
 
 ## Setup
 
@@ -36,7 +50,10 @@ npm run dev         # http://localhost:5173
 A migration está em `supabase/migrations/0001_init.sql`. Aplique no seu projeto Supabase:
 
 1. Acesse o **SQL Editor** no painel do Supabase.
-2. Cole o conteúdo de `supabase/migrations/0001_init.sql` e execute.
+2. Cole e execute, nesta ordem:
+   - `supabase/migrations/0001_init.sql` (schema inicial)
+   - `supabase/migrations/0002_expand_contracts.sql` (colunas do relatório real)
+   - `supabase/migrations/0003_corban_cnpj.sql` (identificador de login do Corban)
 
 A migração cria:
 

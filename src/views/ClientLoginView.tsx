@@ -4,12 +4,12 @@ import { Brand } from '../components/Brand';
 import { Card } from '../components/Card';
 import { PrimaryButton } from '../components/Buttons';
 import { formatBirth, formatCpf } from '../lib/format';
-import { fetchContractByCpfAndBirth } from '../lib/contracts';
+import { fetchContractsByCpfAndBirth } from '../lib/contracts';
 import type { Contract } from '../types';
 
 interface ClientLoginViewProps {
   onBack: () => void;
-  onLogin: (contract: Contract) => void;
+  onLogin: (contracts: Contract[]) => void;
 }
 
 export function ClientLoginView({ onBack, onLogin }: ClientLoginViewProps) {
@@ -26,12 +26,12 @@ export function ClientLoginView({ onBack, onLogin }: ClientLoginViewProps) {
     setLoading(true);
     setError(null);
     try {
-      const contract = await fetchContractByCpfAndBirth(cpf, birth);
-      if (!contract) {
+      const contracts = await fetchContractsByCpfAndBirth(cpf, birth);
+      if (contracts.length === 0) {
         setError('Não encontramos nenhum contrato com esse CPF e data de nascimento.');
         return;
       }
-      onLogin(contract);
+      onLogin(contracts);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao consultar contrato.');
     } finally {

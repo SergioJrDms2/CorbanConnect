@@ -30,7 +30,7 @@ const portals: PortalCard[] = [
     icon: UserCheck,
     tag: 'Correspondente bancário',
     title: 'Painel do Corban',
-    desc: 'Gestão da carteira de contratos, pendências e histórico de notificações enviadas aos clientes.',
+    desc: 'Gestão da carteira. Acesso direto pelo CNPJ da promotora — sem cadastro, sem senha.',
     cta: 'Acessar painel',
   },
   {
@@ -48,7 +48,7 @@ export function HomeView({ onNavigate }: HomeViewProps) {
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Brand />
+          <Brand tagline />
           <div className="flex items-center gap-2 text-xs text-slate-500">
             <CircleDot className="h-3 w-3 text-emerald-500" />
             <span>PRD v1.0 · Rascunho</span>

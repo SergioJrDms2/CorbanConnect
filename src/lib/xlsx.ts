@@ -211,7 +211,19 @@ export async function parseContractsXlsx(file: File): Promise<ParsedXlsx> {
     const phone = celular ?? residencial;
 
     // Corban / Promotora
-    const corbanName = toString(r['NOME PROMOTORA']) ?? toString(r['Ponto de Venda']);
+    const nomePromotoraRaw = toString(r['NOME PROMOTORA']);
+    const corbanName = nomePromotoraRaw ?? toString(r['Ponto de Venda']);
+
+    // CNPJ do corban — extracted from "NOME PROMOTORA" (e.g. "64.839.379 EDLEA BARBOSA").
+    // This is the Corban's login identifier in the portal.
+    let corbanCnpj: string | null = null;
+    if (nomePromotoraRaw) {
+      const digitsMatch = nomePromotoraRaw.match(/([\d.\-/]+)/);
+      if (digitsMatch) {
+        const digits = digitsMatch[1].replace(/\D/g, '');
+        if (digits.length >= 8) corbanCnpj = digits;
+      }
+    }
 
     // Product: "Tipo Produto — Empregador"
     const tipoProduto = toString(r['Tipo Produto']);
@@ -264,6 +276,7 @@ export async function parseContractsXlsx(file: File): Promise<ParsedXlsx> {
       client_phone: phone,
       client_birth: dataNasc,
       corban_name: corbanName,
+      corban_cnpj: corbanCnpj,
       product: product || '—',
       amount,
       installments: Math.round(installments),
@@ -401,6 +414,7 @@ function parseLegacyFormat(
       client_phone: toString(r['client_phone']),
       client_birth: toString(r['client_birth']),
       corban_name: toString(r['corban_name']),
+      corban_cnpj: (toString(r['corban_cnpj']) ?? '').replace(/\D/g, '') || null,
       product: toString(r['product']) ?? '—',
       amount: toNumber(r['amount']) ?? 0,
       installments: toNumber(r['installments']) ?? 0,

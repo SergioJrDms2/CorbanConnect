@@ -1,30 +1,28 @@
-import { Rocket } from 'lucide-react';
+import { Logo } from './Logo';
 
 interface BrandProps {
   small?: boolean;
   white?: boolean;
+  /** Show the "Starbank · Starlabs" tagline next to the logo */
+  tagline?: boolean;
 }
 
-export function Brand({ small = false, white = false }: BrandProps) {
+export function Brand({ small = false, white = false, tagline = false }: BrandProps) {
+  const height = small ? 22 : 32;
   return (
-    <div className={`flex items-center gap-2 ${small ? 'text-base' : 'text-lg'}`}>
-      <div
-        className={`${small ? 'h-7 w-7' : 'h-9 w-9'} grid place-items-center rounded-lg bg-violet-600`}
-      >
-        <Rocket className={`${small ? 'h-4 w-4' : 'h-5 w-5'} text-white`} strokeWidth={2.2} />
-      </div>
-      <div className="leading-none">
+    <div className="flex items-center gap-3">
+      <Logo height={height} white={white} />
+      {tagline && (
         <div
-          className={`font-semibold tracking-tight ${white ? 'text-white' : 'text-slate-900'}`}
+          className={`hidden border-l pl-3 text-[10px] font-medium uppercase leading-tight tracking-[0.18em] sm:block ${
+            white ? 'border-white/20 text-white/70' : 'border-slate-200 text-slate-400'
+          }`}
         >
-          Star <span className="text-violet-600">Connect</span>
+          Starbank
+          <br />
+          Starlabs
         </div>
-        {!small && (
-          <div className="mt-1 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-400">
-            Starbank · Starlabs
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

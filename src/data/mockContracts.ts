@@ -48,10 +48,18 @@ const EXTRA_NULLS = {
   cpfReprLegal: null,
   nomeReprLegal: null,
   corbanName: null,
+  corbanCnpj: null,
   nomeMatriz: null,
   pontoDeVenda: null,
   tipoProposta: null,
   tipoProduto: null,
+};
+
+const DEMO_CORBAN = {
+  corbanName: '64.839.379 EDLEA BARBOSA',
+  corbanCnpj: '64839379',
+  nomeMatriz: 'CORBAN - OPERAÇÃO J',
+  pontoDeVenda: 'EDLEA BARBOSA',
 };
 
 export const MOCK_CONTRACTS: Contract[] = [
@@ -90,6 +98,7 @@ export const MOCK_CONTRACTS: Contract[] = [
       { channel: 'whatsapp', date: '20/04/2026 · 10:30', status: 'read', reg: 'D+7 (Corban em cópia)' },
     ],
     ...EXTRA_NULLS,
+    ...DEMO_CORBAN,
   },
   {
     id: 'CTR-2026-00398',
@@ -117,6 +126,7 @@ export const MOCK_CONTRACTS: Contract[] = [
     ],
     notifications: [],
     ...EXTRA_NULLS,
+    ...DEMO_CORBAN,
   },
   {
     id: 'CTR-2026-00387',
@@ -154,6 +164,7 @@ export const MOCK_CONTRACTS: Contract[] = [
       { channel: 'whatsapp', date: '21/04/2026 · 14:10', status: 'pending', reg: 'D+15 (Corban em cópia)' },
     ],
     ...EXTRA_NULLS,
+    ...DEMO_CORBAN,
   },
   {
     id: 'CTR-2026-00376',
@@ -181,6 +192,7 @@ export const MOCK_CONTRACTS: Contract[] = [
     ],
     notifications: [],
     ...EXTRA_NULLS,
+    ...DEMO_CORBAN,
   },
   {
     id: 'CTR-2026-00365',
@@ -214,5 +226,35 @@ export const MOCK_CONTRACTS: Contract[] = [
       { channel: 'whatsapp', date: '18/04/2026 · 10:05', status: 'read', reg: 'D+0' },
     ],
     ...EXTRA_NULLS,
+    ...DEMO_CORBAN,
+  },
+  // Segundo contrato em aberto para Maria Aparecida (mesmo CPF + nascimento)
+  {
+    id: 'CTR-2026-00442',
+    client: {
+      name: 'Maria Aparecida Silva',
+      cpf: '123.456.789-01',
+      phone: '(11) 98765-4321',
+      birth: '15/03/1968',
+    },
+    product: 'Cartão Consignado INSS (RMC)',
+    amount: 1200,
+    installments: 3,
+    installmentValue: 122.24,
+    status: 'credit_analysis',
+    statusLabel: 'Análise de Crédito',
+    pendency: null,
+    lastUpdate: '21/04/2026 · 11:02',
+    timeline: [
+      { step: 'Proposta iniciada', date: '19/04/2026', done: true },
+      { step: 'Dados cadastrais', date: '19/04/2026', done: true },
+      { step: 'Análise de crédito', date: '—', done: false, current: true },
+      { step: 'Documentação', date: '—', done: false },
+      { step: 'Formalização', date: '—', done: false },
+      { step: 'Liberação', date: '—', done: false },
+    ],
+    notifications: [],
+    ...EXTRA_NULLS,
+    ...DEMO_CORBAN,
   },
 ];

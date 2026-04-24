@@ -43,9 +43,15 @@ function friendlyActionMessage(motivoRecusa: string | null): string {
 }
 
 export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
+  // "Seu correspondente" information derived from the real XLSX fields.
+  // Display priority: Ponto de Venda > NOME PROMOTORA (company name part).
+  const corbanDisplayName =
+    contract.pontoDeVenda ??
+    (contract.corbanName ? contract.corbanName.replace(/^\d[\d.\-/]*\s*/, '') : null) ??
+    'Seu correspondente';
   const corban = {
-    name: contract.corbanName ?? contract.pontoDeVenda ?? 'Seu correspondente',
-    phone: contract.gerenteRespPromotora ? '(DD) 0000-0000' : '(DD) 0000-0000',
+    name: corbanDisplayName,
+    manager: contract.gerenteRespPromotora ?? null,
   };
 
   const hasAction = !!contract.pendency;
@@ -274,12 +280,11 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
                 >
                   <MessageSquare className="h-4 w-4" /> WhatsApp
                 </a>
-                <a
-                  href="#"
-                  className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-white/10"
-                >
-                  <Phone className="h-4 w-4" /> <span className="font-mono">{corban.phone}</span>
-                </a>
+                {corban.manager && (
+                  <div className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm">
+                    <Phone className="h-4 w-4" /> <span>{corban.manager}</span>
+                  </div>
+                )}
               </div>
             </Card>
 

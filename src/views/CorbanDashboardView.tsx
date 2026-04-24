@@ -13,7 +13,7 @@ import {
 import { Brand } from '../components/Brand';
 import { Card } from '../components/Card';
 import { StatusBadge } from '../components/StatusBadge';
-import { useContracts } from '../hooks/useContracts';
+import { useCorbanContracts } from '../hooks/useContracts';
 import { colorMap } from '../lib/theme';
 import { formatBRL } from '../lib/format';
 import type { Contract, ContractStatus, ToneColor } from '../types';
@@ -21,6 +21,7 @@ import type { Contract, ContractStatus, ToneColor } from '../types';
 interface CorbanDashboardViewProps {
   onBack: () => void;
   onOpenContract: (c: Contract) => void;
+  cnpj: string;
 }
 
 interface FilterOption {
@@ -37,10 +38,15 @@ const FILTERS: FilterOption[] = [
   { id: 'canceled', label: 'Cancelado / Redigitar' },
 ];
 
-export function CorbanDashboardView({ onBack, onOpenContract }: CorbanDashboardViewProps) {
-  const { contracts, loading, error } = useContracts();
+export function CorbanDashboardView({ onBack, onOpenContract, cnpj }: CorbanDashboardViewProps) {
+  const { contracts, loading, error } = useCorbanContracts(cnpj);
   const [statusFilter, setStatusFilter] = useState<FilterOption['id']>('all');
   const [search, setSearch] = useState('');
+
+  // Corban identity (derived from the first contract — all share the same Corban)
+  const corbanDisplayName =
+    contracts[0]?.pontoDeVenda ?? contracts[0]?.corbanName ?? `CNPJ ${cnpj}`;
+  const corbanMatrix = contracts[0]?.nomeMatriz ?? null;
 
   const filtered = useMemo(() => {
     return contracts.filter((c) => {
@@ -88,7 +94,9 @@ export function CorbanDashboardView({ onBack, onOpenContract }: CorbanDashboardV
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden items-center gap-2 rounded-lg bg-slate-100 px-3 py-1.5 text-xs text-slate-600 sm:flex">
-              <User className="h-3.5 w-3.5" /> Ricardo Almeida
+              <User className="h-3.5 w-3.5" />
+              <span className="max-w-[160px] truncate">{corbanDisplayName}</span>
+              <span className="font-mono text-[10px] text-slate-400">· {cnpj}</span>
             </div>
             <button
               onClick={onBack}
@@ -105,7 +113,7 @@ export function CorbanDashboardView({ onBack, onOpenContract }: CorbanDashboardV
         <div className="mb-8 flex flex-wrap items-start justify-between gap-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-              Olá, Ricardo.
+              Olá, {corbanDisplayName.split(' ')[0]}.
             </h1>
             <p className="mt-1 text-sm text-slate-600">
               {stats.needsAction > 0 ? (
@@ -120,6 +128,11 @@ export function CorbanDashboardView({ onBack, onOpenContract }: CorbanDashboardV
                 <>Todos os contratos em dia. Nenhuma pendência aberta no momento.</>
               )}
             </p>
+            {corbanMatrix && (
+              <div className="mt-2 text-xs text-slate-500">
+                {corbanMatrix} · CNPJ {cnpj}
+              </div>
+            )}
           </div>
           <div className="font-mono text-xs text-slate-500">
             {new Date().toLocaleDateString('pt-BR', {
