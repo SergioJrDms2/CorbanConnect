@@ -50,10 +50,15 @@ npm run dev         # http://localhost:5173
 A migration está em `supabase/migrations/0001_init.sql`. Aplique no seu projeto Supabase:
 
 1. Acesse o **SQL Editor** no painel do Supabase.
-2. Cole e execute, nesta ordem:
-   - `supabase/migrations/0001_init.sql` (schema inicial)
-   - `supabase/migrations/0002_expand_contracts.sql` (colunas do relatório real)
-   - `supabase/migrations/0003_corban_cnpj.sql` (identificador de login do Corban)
+2. Cole e execute **`supabase/setup.sql`** — arquivo único, idempotente, que
+   cria todas as tabelas, colunas, índices, RLS e força um `NOTIFY pgrst,
+   'reload schema'` no final para evitar o erro de "schema cache" do
+   PostgREST após alteração de colunas. Pode ser re-executado a qualquer
+   momento sem problemas.
+
+   > Os arquivos `supabase/migrations/0001_init.sql`, `0002_expand_contracts.sql`
+   > e `0003_corban_cnpj.sql` ficam como histórico. Use `setup.sql` para
+   > setup de fresh e para aplicar updates.
 
 A migração cria:
 

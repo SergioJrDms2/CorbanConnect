@@ -51,7 +51,14 @@ export function XlsxUpload({ onUploaded }: XlsxUploadProps) {
     const result = await upsertContracts(parsed.rows);
     setLoading(false);
     if (result.error) {
-      setFeedback({ kind: 'error', message: result.error });
+      const isSchemaIssue =
+        /schema cache|column .* does not exist|Could not find/i.test(result.error);
+      setFeedback({
+        kind: 'error',
+        message: isSchemaIssue
+          ? `${result.error}\n\nSolução: abra o SQL Editor do Supabase e execute o arquivo supabase/setup.sql (cria/atualiza todas as colunas + força reload do cache do PostgREST). Depois tente subir o XLSX novamente.`
+          : result.error,
+      });
       return;
     }
     setFeedback({
@@ -185,11 +192,11 @@ export function XlsxUpload({ onUploaded }: XlsxUploadProps) {
           }`}
         >
           {feedback.kind === 'success' ? (
-            <CheckCircle2 className="mt-0.5 h-3.5 w-3.5" />
+            <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           ) : (
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5" />
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           )}
-          <span>{feedback.message}</span>
+          <span className="whitespace-pre-line leading-relaxed">{feedback.message}</span>
         </div>
       )}
     </Card>
