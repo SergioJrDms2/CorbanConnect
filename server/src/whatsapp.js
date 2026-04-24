@@ -121,6 +121,47 @@ export async function sendWhatsAppMessage(phone, message) {
 }
 
 /**
+ * Extrai o raiz do CNPJ (8 dígitos) do campo NOME PROMOTORA.
+ * Ex: "64.839.379 EDLEA BARBOSA" → "64839379"
+ */
+function extractCnpjFromField(field) {
+  if (!field) return null;
+  const digits = field.replace(/\D/g, '');
+  return digits.length >= 8 ? digits.slice(0, 8) : null;
+}
+
+/**
+ * Busca o Corban na tabela corbans (fonte de verdade).
+ * Prioridade: corban_cnpj → dígitos do corban_name → ponto_de_venda
+ */
+async function lookupCorbanForContract(contract) {
+  const cnpjToTry = contract.corban_cnpj
+    ?? extractCnpjFromField(contract.corban_name);
+
+  if (cnpjToTry) {
+    const { data } = await supabase
+      .from('corbans')
+      .select('whatsapp, nome')
+      .eq('cnpj', cnpjToTry)
+      .maybeSingle();
+    if (data) return data;
+  }
+
+  // fallback: ponto_de_venda ou corban_name bate com corbans.nome
+  const nomeToSearch = contract.ponto_de_venda ?? contract.corban_name;
+  if (nomeToSearch) {
+    const { data } = await supabase
+      .from('corbans')
+      .select('whatsapp, nome')
+      .eq('nome', nomeToSearch)
+      .maybeSingle();
+    if (data) return data;
+  }
+
+  return null;
+}
+
+/**
  * Mensagens recebidas: extrai texto, identifica se é um cliente conhecido
  * pelo CPF/telefone, registra em notification_log como 'read' e (se houver)
  * reencaminha ao Corban.
@@ -145,7 +186,7 @@ async function handleIncoming(msg) {
   // Procura um contrato cujo `client_phone` termine com os dígitos do remetente.
   const { data: contracts } = await supabase
     .from('contracts')
-    .select('id, client_name, corban_cnpj, client_cpf')
+    .select('id, client_name, corban_cnpj, corban_name, ponto_de_venda, client_cpf')
     .ilike('client_phone', `%${phoneClean.slice(-8)}%`)
     .limit(1);
 
@@ -160,22 +201,16 @@ async function handleIncoming(msg) {
     reg: `resposta cliente: ${text.slice(0, 140)}`,
   });
 
-  // Reencaminha para o Corban (se cadastrado com WhatsApp).
-  if (contract.corban_cnpj) {
-    const { data: corban } = await supabase
-      .from('corbans')
-      .select('whatsapp, nome')
-      .eq('cnpj', contract.corban_cnpj)
-      .maybeSingle();
-    if (corban?.whatsapp) {
-      try {
-        await sendWhatsAppMessage(
-          corban.whatsapp,
-          `📬 Resposta do cliente *${contract.client_name}* (contrato ${contract.id}):\n\n${text}\n\n— Corban Connect`,
-        );
-      } catch (err) {
-        console.error('Falha ao reencaminhar para o Corban:', err.message);
-      }
+  // Reencaminha para o Corban — usa corbans como fonte de verdade
+  const corban = await lookupCorbanForContract(contract);
+  if (corban?.whatsapp) {
+    try {
+      await sendWhatsAppMessage(
+        corban.whatsapp,
+        `📬 Resposta do cliente *${contract.client_name}* (contrato ${contract.id}):\n\n${text}\n\n— Corban Connect`,
+      );
+    } catch (err) {
+      console.error('Falha ao reencaminhar para o Corban:', err.message);
     }
   }
 }
