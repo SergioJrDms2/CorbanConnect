@@ -27,6 +27,7 @@
  *   AND → credit_analysis  (Em andamento)
  */
 
+import { supabase } from './supabase';
 import type { ContractStatus } from '../types';
 import { STATUS_CONFIG } from './theme';
 import type { ContractRow } from './contracts';
@@ -348,6 +349,23 @@ export async function parseContractsXlsx(file: File): Promise<ParsedXlsx> {
     });
   });
 
+  // Fallback: para nomes sem CNPJ embutido, consulta a tabela corbans
+  if (supabase && rows.some(r => !r.corban_cnpj && r.corban_name)) {
+    const unknownNames = [
+      ...new Set(rows.filter(r => !r.corban_cnpj && r.corban_name).map(r => r.corban_name!)),
+    ];
+    const { data: known } = await supabase
+      .from('corbans')
+      .select('cnpj, nome')
+      .in('nome', unknownNames);
+    if (known?.length) {
+      const map = new Map((known as { cnpj: string; nome: string }[]).map(c => [c.nome, c.cnpj]));
+      rows.forEach(r => {
+        if (!r.corban_cnpj && r.corban_name) r.corban_cnpj = map.get(r.corban_name) ?? null;
+      });
+    }
+  }
+
   return { rows, errors, warnings };
 }
 
@@ -485,6 +503,23 @@ function parseLegacyFormat(
       nome_repr_legal: null,
     });
   });
+
+  // Fallback: para nomes sem CNPJ embutido, consulta a tabela corbans
+  if (supabase && rows.some(r => !r.corban_cnpj && r.corban_name)) {
+    const unknownNames = [
+      ...new Set(rows.filter(r => !r.corban_cnpj && r.corban_name).map(r => r.corban_name!)),
+    ];
+    const { data: known } = await supabase
+      .from('corbans')
+      .select('cnpj, nome')
+      .in('nome', unknownNames);
+    if (known?.length) {
+      const map = new Map((known as { cnpj: string; nome: string }[]).map(c => [c.nome, c.cnpj]));
+      rows.forEach(r => {
+        if (!r.corban_cnpj && r.corban_name) r.corban_cnpj = map.get(r.corban_name) ?? null;
+      });
+    }
+  }
 
   return { rows, errors, warnings };
 }
