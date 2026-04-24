@@ -273,12 +273,6 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
                 >
                   <MessageSquare className="h-4 w-4 shrink-0" /> WhatsApp
                 </a>
-                {corban.manager && (
-                  <div className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-medium text-white">
-                    <Phone className="h-4 w-4 shrink-0" />
-                    <span>{corban.manager}</span>
-                  </div>
-                )}
               </div>
             </div>
 
