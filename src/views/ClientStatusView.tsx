@@ -260,9 +260,9 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
           </div>
 
           <div>
-            <Card
-              className="border-violet-500 p-5 text-white"
-              style={{ backgroundColor: '#7c3aed' }} // violet-600 garantido via inline
+            <div
+              className="rounded-xl border border-violet-500 p-5 text-white"
+              style={{ backgroundColor: '#7c3aed' }}
             >
               <div className="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-violet-100">
                 Seu correspondente
@@ -292,7 +292,7 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
                   </div>
                 )}
               </div>
-            </Card>
+            </div>
           
             <div className="mt-4 rounded-lg bg-slate-100 px-4 py-3 text-xs leading-relaxed text-slate-600">
               Qualquer dúvida sobre seu contrato, fale diretamente com{' '}
