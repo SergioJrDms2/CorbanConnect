@@ -155,7 +155,7 @@ export async function parseContractsXlsx(file: File): Promise<ParsedXlsx> {
   }
 
   if (isLegacyFormat) {
-    return parseLegacyFormat(records, errors, warnings);
+    return await parseLegacyFormat(records, errors, warnings);
   }
 
   // ── Parse system export format ────────────────────────────────────────────
@@ -389,7 +389,7 @@ function isContractStatus(v: unknown): v is ContractStatus {
   );
 }
 
-function parseLegacyFormat(
+async function parseLegacyFormat(
   records: Record<string, unknown>[],
   errors: string[],
   warnings: string[],
