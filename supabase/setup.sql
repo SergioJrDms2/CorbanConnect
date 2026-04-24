@@ -57,6 +57,15 @@ create table if not exists public.xlsx_uploads (
   uploaded_at timestamptz default now()
 );
 
+-- Opt-out LGPD: chave é o CPF (um opt-out aplica a todos os contratos do cliente).
+-- Token: hash opaco enviado no rodapé das mensagens; confirma a intenção de sair.
+create table if not exists public.client_opt_outs (
+  cpf          text primary key,
+  opted_out_at timestamptz default now(),
+  source       text,           -- 'whatsapp' | 'sms' | 'email' | 'portal' | 'manual'
+  token        text unique     -- token enviado nas mensagens (opcional)
+);
+
 -- ────────────────────────────────────────────────────────────────────────────
 -- 2. Colunas expandidas (do relatório real do banco + CNPJ do Corban)
 -- ────────────────────────────────────────────────────────────────────────────
@@ -174,19 +183,30 @@ create trigger contracts_set_updated_at
 
 -- ────────────────────────────────────────────────────────────────────────────
 -- 5. Row Level Security
+--
+-- Regra: a tabela `contracts` NUNCA é lida pelo role anon diretamente.
+-- Cliente e Corban acessam via RPC security-definer que filtra por argumento.
+-- Isso impede brute-force de `select *` e limita o blast-radius da anon key.
 -- ────────────────────────────────────────────────────────────────────────────
 
 alter table public.contracts        enable row level security;
 alter table public.notification_log enable row level security;
 alter table public.xlsx_uploads     enable row level security;
+alter table public.client_opt_outs  enable row level security;
 
+drop policy if exists "opt_outs_auth_all" on public.client_opt_outs;
+create policy "opt_outs_auth_all" on public.client_opt_outs for all
+  using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
+
+-- Tabela contracts: apenas authenticated (equipe interna) lê/escreve.
 drop policy if exists "contracts_auth_read"   on public.contracts;
 drop policy if exists "contracts_auth_write"  on public.contracts;
 drop policy if exists "contracts_anon_read"   on public.contracts;
 create policy "contracts_auth_read"  on public.contracts for select using (auth.role() = 'authenticated');
 create policy "contracts_auth_write" on public.contracts for all    using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "contracts_anon_read"  on public.contracts for select using (true);
 
+-- Notification log: authenticated lê; service role insere (via Edge Function).
 drop policy if exists "notification_log_auth_read"  on public.notification_log;
 drop policy if exists "notification_log_auth_write" on public.notification_log;
 create policy "notification_log_auth_read"  on public.notification_log for select using (auth.role() = 'authenticated');
@@ -196,6 +216,180 @@ drop policy if exists "xlsx_uploads_auth" on public.xlsx_uploads;
 create policy "xlsx_uploads_auth" on public.xlsx_uploads for all
   using (auth.role() = 'authenticated')
   with check (auth.role() = 'authenticated');
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- 5b. RPCs públicas (security definer) para Cliente e Corban
+--
+-- São as ÚNICAS portas de entrada anônimas para ler `contracts`. Retornam só
+-- as linhas que batem com os argumentos passados. Revogamos SELECT direto do
+-- role anon (já feito implicitamente por RLS sem policy anon).
+-- ────────────────────────────────────────────────────────────────────────────
+
+create or replace function public.get_client_contracts(p_cpf text, p_birth text)
+returns setof public.contracts
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select *
+    from public.contracts
+   where client_cpf = regexp_replace(coalesce(p_cpf, ''), '\D', '', 'g')
+     and client_birth = p_birth
+   order by updated_at desc;
+$$;
+
+create or replace function public.get_corban_contracts(p_cnpj text)
+returns setof public.contracts
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select *
+    from public.contracts
+   where corban_cnpj = regexp_replace(coalesce(p_cnpj, ''), '\D', '', 'g')
+   order by updated_at desc;
+$$;
+
+create or replace function public.get_contract_notifications(p_contract_id text)
+returns setof public.notification_log
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select *
+    from public.notification_log
+   where contract_id = p_contract_id
+   order by sent_at desc;
+$$;
+
+-- Grants explícitos (security definer roda sob o owner, mas o EXECUTE precisa
+-- estar liberado para anon/authenticated).
+grant execute on function public.get_client_contracts(text, text)       to anon, authenticated;
+grant execute on function public.get_corban_contracts(text)             to anon, authenticated;
+grant execute on function public.get_contract_notifications(text)       to anon, authenticated;
+
+-- Opt-out: registra desistência do cliente a partir do link no rodapé
+-- das mensagens. Retorna true se o opt-out foi criado/reforçado.
+create or replace function public.register_opt_out(p_token text, p_source text default 'message')
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_cpf text;
+begin
+  select cpf into v_cpf from public.client_opt_outs where token = p_token;
+  if v_cpf is null then
+    return false;
+  end if;
+  update public.client_opt_outs
+     set opted_out_at = now(),
+         source = coalesce(p_source, source)
+   where cpf = v_cpf;
+  return true;
+end;
+$$;
+
+grant execute on function public.register_opt_out(text, text) to anon, authenticated;
+
+-- ────────────────────────────────────────────────────────────────────────────
+-- 5c. Métricas do dashboard interno (agregados sobre notification_log)
+-- ────────────────────────────────────────────────────────────────────────────
+
+create or replace function public.metric_dashboard_kpis(p_since interval default interval '30 days')
+returns table (
+  open_rate numeric,
+  action_rate numeric,
+  total_sent bigint,
+  total_read bigint
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with window_rows as (
+    select * from public.notification_log where sent_at >= now() - p_since
+  )
+  select
+    case when count(*) = 0 then 0
+         else round(100.0 * count(*) filter (where status = 'read') / count(*), 1)
+    end as open_rate,
+    case when count(distinct contract_id) = 0 then 0
+         else round(100.0 *
+           count(distinct contract_id) filter (where status in ('read'))
+           / count(distinct contract_id), 1)
+    end as action_rate,
+    count(*) as total_sent,
+    count(*) filter (where status = 'read') as total_read
+  from window_rows;
+$$;
+
+create or replace function public.metric_dispatches_by_day(p_days integer default 7)
+returns table (day date, whatsapp bigint, sms bigint, email bigint, total bigint)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    (sent_at at time zone 'America/Sao_Paulo')::date as day,
+    count(*) filter (where channel = 'whatsapp') as whatsapp,
+    count(*) filter (where channel = 'sms')      as sms,
+    count(*) filter (where channel = 'email')    as email,
+    count(*) as total
+  from public.notification_log
+  where sent_at >= now() - (p_days || ' days')::interval
+  group by 1
+  order by 1;
+$$;
+
+create or replace function public.metric_ruler_resolution()
+returns table (reg text, pct numeric, count bigint)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with sent as (
+    select contract_id, split_part(reg, ' ', 1) as reg_base
+      from public.notification_log
+     where reg is not null
+  ),
+  active as (
+    select id from public.contracts where pendency_type is not null
+  )
+  select s.reg_base as reg,
+         case when count(distinct s.contract_id) = 0 then 0
+              else round(100.0 *
+                count(distinct s.contract_id) filter (where s.contract_id not in (select id from active))
+                / count(distinct s.contract_id), 1)
+         end as pct,
+         count(distinct s.contract_id) as count
+    from sent s
+   where s.reg_base in ('D+0', 'D+3', 'D+7', 'D+15')
+   group by s.reg_base
+   order by array_position(array['D+0','D+3','D+7','D+15'], s.reg_base);
+$$;
+
+create or replace function public.metric_recent_dispatches(p_limit integer default 10)
+returns setof public.notification_log
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select * from public.notification_log order by sent_at desc limit p_limit;
+$$;
+
+grant execute on function public.metric_dashboard_kpis(interval)       to authenticated;
+grant execute on function public.metric_dispatches_by_day(integer)     to authenticated;
+grant execute on function public.metric_ruler_resolution()             to authenticated;
+grant execute on function public.metric_recent_dispatches(integer)     to authenticated;
 
 -- ────────────────────────────────────────────────────────────────────────────
 -- 6. Reload do cache de schema do PostgREST

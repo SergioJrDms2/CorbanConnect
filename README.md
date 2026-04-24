@@ -139,8 +139,16 @@ src/
 2. A abordagem ao Corban é de parceria, nunca de controle.
 3. Toda comunicação com o cliente é informativa e redirecionadora.
 
-## Modo demo (sem Supabase)
+## Modo desenvolvimento (sem Supabase)
 
-Se as variáveis de ambiente não forem configuradas, o app roda em modo demo:
-dados do mock são usados, o login interno oferece um botão "Continuar em modo demo" e o
-upload XLSX faz parsing mas não persiste.
+Em ambiente **dev** (`npm run dev`), definir `VITE_ALLOW_MOCK=1` no `.env.local`
+permite que os mocks de `src/data/mockContracts.ts` sejam usados como fallback
+quando o Supabase não está configurado. Em produção a flag é ignorada — o app
+falha com erro claro se não achar as credenciais.
+
+## Ir para produção
+
+Veja **`PRODUCTION.md`** para o runbook completo: rotação de chaves, deploy das
+Edge Functions (`dispatch-notification`, `run-ruler`), agendamento do
+`pg_cron`, aprovação de templates WhatsApp, deploy na Vercel e checklist
+pré-launch.

@@ -4,6 +4,7 @@ import { Brand } from '../components/Brand';
 import { Card } from '../components/Card';
 import { PrimaryButton } from '../components/Buttons';
 import { formatBirth, formatCpf } from '../lib/format';
+import { isValidCpf } from '../lib/validation';
 import { fetchContractsByCpfAndBirth } from '../lib/contracts';
 import type { Contract } from '../types';
 
@@ -23,6 +24,10 @@ export function ClientLoginView({ onBack, onLogin }: ClientLoginViewProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
+    if (!isValidCpf(cpf)) {
+      setError('CPF inválido. Verifique os dígitos digitados.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {

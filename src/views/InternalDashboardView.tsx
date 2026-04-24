@@ -6,8 +6,6 @@ import {
   LogOut,
   MessagesSquare,
   Shield,
-  TrendingDown,
-  TrendingUp,
   Zap,
 } from 'lucide-react';
 import { Brand } from '../components/Brand';
@@ -15,6 +13,7 @@ import { Card } from '../components/Card';
 import { GhostButton } from '../components/Buttons';
 import { XlsxUpload } from '../components/XlsxUpload';
 import { colorMap } from '../lib/theme';
+import { useInternalMetrics, type RecentDispatch } from '../hooks/useInternalMetrics';
 import type { NotificationChannel, NotificationStatus, ToneColor } from '../types';
 
 interface InternalDashboardViewProps {
@@ -23,24 +22,8 @@ interface InternalDashboardViewProps {
   onUploaded?: () => void;
 }
 
-interface LogEntry {
-  ts: string;
-  ch: NotificationChannel;
-  ctr: string;
-  reg: string;
-  status: NotificationStatus;
-}
-
-const LOG_ROWS: LogEntry[] = [
-  { ts: '22/04/2026 · 09:12', ch: 'whatsapp', ctr: 'CTR-2026-00412', reg: 'D+3', status: 'delivered' },
-  { ts: '22/04/2026 · 09:08', ch: 'whatsapp', ctr: 'CTR-2026-00418', reg: 'D+0', status: 'delivered' },
-  { ts: '22/04/2026 · 09:05', ch: 'sms', ctr: 'CTR-2026-00405', reg: 'fallback', status: 'delivered' },
-  { ts: '22/04/2026 · 08:45', ch: 'whatsapp', ctr: 'CTR-2026-00387', reg: 'D+15', status: 'pending' },
-  { ts: '22/04/2026 · 08:30', ch: 'email', ctr: 'CTR-2026-00376', reg: 'D+7', status: 'failed' },
-  { ts: '22/04/2026 · 08:15', ch: 'whatsapp', ctr: 'CTR-2026-00398', reg: 'D+0', status: 'read' },
-];
-
 export function InternalDashboardView({ onBack, userEmail, onUploaded }: InternalDashboardViewProps) {
+  const metrics = useInternalMetrics();
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="border-b border-slate-200 bg-white">
@@ -92,35 +75,31 @@ export function InternalDashboardView({ onBack, userEmail, onUploaded }: Interna
         <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4">
           <BigMetric
             label="Taxa de abertura"
-            value="67%"
+            value={metrics.kpis ? `${metrics.kpis.openRate}%` : '—'}
             target="Meta > 60%"
-            trend="up"
-            trendLabel="+4pp"
             icon={Eye}
+            loading={metrics.loading}
           />
           <BigMetric
             label="Ação após notificação"
-            value="38%"
+            value={metrics.kpis ? `${metrics.kpis.actionRate}%` : '—'}
             target="Meta > 35%"
-            trend="up"
-            trendLabel="+2pp"
             icon={MessagesSquare}
+            loading={metrics.loading}
           />
           <BigMetric
-            label="Latência de disparo"
-            value="3.2 min"
-            target="Meta < 5 min"
-            trend="up"
-            trendLabel="-0.4min"
+            label="Total de disparos (30d)"
+            value={metrics.kpis ? String(metrics.kpis.totalSent) : '—'}
+            target={metrics.kpis ? `${metrics.kpis.totalRead} lidas` : ''}
             icon={Zap}
+            loading={metrics.loading}
           />
           <BigMetric
             label="Uptime do portal"
-            value="99.8%"
-            target="Meta > 99.5%"
-            trend="up"
-            trendLabel="estável"
+            value="—"
+            target="Monitoramento externo"
             icon={Gauge}
+            loading={false}
           />
         </div>
 
@@ -135,7 +114,9 @@ export function InternalDashboardView({ onBack, userEmail, onUploaded }: Interna
                 <div className="text-sm font-semibold text-slate-900">
                   Disparos nos últimos 7 dias
                 </div>
-                <div className="mt-0.5 text-xs text-slate-500">Por canal · total 4.812 envios</div>
+                <div className="mt-0.5 text-xs text-slate-500">
+                  Por canal · total {metrics.byDay.reduce((s, d) => s + d.total, 0)} envios
+                </div>
               </div>
               <div className="flex gap-3 text-xs">
                 <LegendDot color="emerald" label="WhatsApp" />
@@ -143,7 +124,7 @@ export function InternalDashboardView({ onBack, userEmail, onUploaded }: Interna
                 <LegendDot color="violet" label="E-mail" />
               </div>
             </div>
-            <BarChart />
+            <BarChart days={metrics.byDay} loading={metrics.loading} />
           </Card>
 
           <Card className="p-6">
@@ -152,10 +133,17 @@ export function InternalDashboardView({ onBack, userEmail, onUploaded }: Interna
             </div>
             <div className="mb-5 text-xs text-slate-500">Taxa de resolução por ciclo</div>
             <div className="space-y-4">
-              <RulerRow label="D+0" pct={22} count={1058} />
-              <RulerRow label="D+3" pct={41} count={718} />
-              <RulerRow label="D+7" pct={62} count={284} />
-              <RulerRow label="D+15" pct={78} count={96} />
+              {['D+0', 'D+3', 'D+7', 'D+15'].map((label) => {
+                const row = metrics.ruler.find((r) => r.reg === label);
+                return (
+                  <RulerRow
+                    key={label}
+                    label={label}
+                    pct={row?.pct ?? 0}
+                    count={row?.count ?? 0}
+                  />
+                );
+              })}
             </div>
             <div className="mt-5 border-t border-slate-100 pt-4 text-xs leading-relaxed text-slate-500">
               Régua para automaticamente quando pendência é sanada. Corban copiado em D+7 e D+15.
@@ -181,8 +169,22 @@ export function InternalDashboardView({ onBack, userEmail, onUploaded }: Interna
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {LOG_ROWS.map((r, i) => (
-                    <LogRow key={i} r={r} />
+                  {metrics.loading && (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-sm text-slate-500">
+                        Carregando…
+                      </td>
+                    </tr>
+                  )}
+                  {!metrics.loading && metrics.recent.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-sm text-slate-500">
+                        Nenhum disparo registrado ainda.
+                      </td>
+                    </tr>
+                  )}
+                  {metrics.recent.map((r) => (
+                    <LogRow key={r.id} r={r} />
                   ))}
                 </tbody>
               </table>
@@ -246,15 +248,17 @@ const LOG_STATUS_STYLES: Record<
   failed: { label: 'Falhou', color: 'text-red-700', dot: 'bg-red-500' },
 };
 
-function LogRow({ r }: { r: LogEntry }) {
+function LogRow({ r }: { r: RecentDispatch }) {
   const st = LOG_STATUS_STYLES[r.status];
   return (
     <tr>
-      <td className="px-6 py-3 font-mono text-xs text-slate-600">{r.ts}</td>
-      <td className="py-3 text-slate-700">{CHANNEL_LABEL[r.ch]}</td>
-      <td className="py-3 font-mono text-xs text-slate-500">{r.ctr}</td>
+      <td className="px-6 py-3 font-mono text-xs text-slate-600">{formatTimestamp(r.sent_at)}</td>
+      <td className="py-3 text-slate-700">{CHANNEL_LABEL[r.channel]}</td>
+      <td className="py-3 font-mono text-xs text-slate-500">{r.contract_id}</td>
       <td className="py-3">
-        <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">{r.reg}</span>
+        <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs">
+          {r.reg ?? '—'}
+        </span>
       </td>
       <td className={`px-6 py-3 ${st.color}`}>
         <span className="inline-flex items-center gap-1.5 text-xs font-medium">
@@ -265,38 +269,33 @@ function LogRow({ r }: { r: LogEntry }) {
   );
 }
 
+function formatTimestamp(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} · ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 interface BigMetricProps {
   label: string;
   value: string;
   target: string;
-  trend: 'up' | 'down';
-  trendLabel: string;
   icon: LucideIcon;
+  loading?: boolean;
 }
 
-function BigMetric({ label, value, target, trend, trendLabel, icon: Icon }: BigMetricProps) {
+function BigMetric({ label, value, target, icon: Icon, loading = false }: BigMetricProps) {
   return (
     <Card className="p-5">
       <div className="mb-3 flex items-start justify-between">
         <div className="grid h-9 w-9 place-items-center rounded-lg bg-violet-50">
           <Icon className="h-4 w-4 text-violet-600" strokeWidth={2} />
         </div>
-        <span
-          className={`inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium ${
-            trend === 'up' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
-          }`}
-        >
-          {trend === 'up' ? (
-            <TrendingUp className="h-3 w-3" />
-          ) : (
-            <TrendingDown className="h-3 w-3" />
-          )}{' '}
-          {trendLabel}
-        </span>
       </div>
-      <div className="text-2xl font-semibold tracking-tight text-slate-900">{value}</div>
+      <div className="text-2xl font-semibold tracking-tight text-slate-900">
+        {loading ? '…' : value}
+      </div>
       <div className="mt-1 text-xs text-slate-500">{label}</div>
-      <div className="mt-2 font-mono text-[10px] text-slate-400">{target}</div>
+      {target && <div className="mt-2 font-mono text-[10px] text-slate-400">{target}</div>}
     </Card>
   );
 }
@@ -310,30 +309,34 @@ function LegendDot({ color, label }: { color: ToneColor; label: string }) {
   );
 }
 
-interface ChartDay {
-  l: string;
-  w: number;
-  s: number;
-  e: number;
+interface BarChartProps {
+  days: { day: string; whatsapp: number; sms: number; email: number; total: number }[];
+  loading: boolean;
 }
 
-const CHART_DAYS: ChartDay[] = [
-  { l: 'Qua', w: 520, s: 140, e: 80 },
-  { l: 'Qui', w: 610, s: 180, e: 110 },
-  { l: 'Sex', w: 480, s: 120, e: 70 },
-  { l: 'Sáb', w: 210, s: 60, e: 20 },
-  { l: 'Dom', w: 180, s: 50, e: 18 },
-  { l: 'Seg', w: 690, s: 210, e: 120 },
-  { l: 'Ter', w: 720, s: 240, e: 140 },
-];
+const DAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-function BarChart() {
-  const max = Math.max(...CHART_DAYS.map((d) => d.w + d.s + d.e));
+function BarChart({ days, loading }: BarChartProps) {
+  if (loading) {
+    return (
+      <div className="mt-2 flex h-48 items-center justify-center text-sm text-slate-400">
+        Carregando…
+      </div>
+    );
+  }
+  if (days.length === 0) {
+    return (
+      <div className="mt-2 flex h-48 items-center justify-center text-sm text-slate-400">
+        Sem disparos no período.
+      </div>
+    );
+  }
+  const max = Math.max(1, ...days.map((d) => d.total));
   return (
     <div className="mt-2 flex h-48 items-end gap-3 pt-2">
-      {CHART_DAYS.map((d, i) => {
-        const total = d.w + d.s + d.e;
-        const h = (total / max) * 100;
+      {days.map((d, i) => {
+        const h = (d.total / max) * 100;
+        const label = DAY_LABELS[new Date(d.day + 'T00:00:00').getDay()] ?? d.day;
         return (
           <div key={i} className="flex flex-1 flex-col items-center gap-2">
             <div className="flex h-full w-full flex-col justify-end">
@@ -341,13 +344,13 @@ function BarChart() {
                 className="flex w-full flex-col overflow-hidden rounded-t-md"
                 style={{ height: `${h}%` }}
               >
-                <div className="bg-violet-500" style={{ flex: d.e }} />
-                <div className="bg-sky-500" style={{ flex: d.s }} />
-                <div className="bg-emerald-500" style={{ flex: d.w }} />
+                <div className="bg-violet-500" style={{ flex: d.email }} />
+                <div className="bg-sky-500" style={{ flex: d.sms }} />
+                <div className="bg-emerald-500" style={{ flex: d.whatsapp }} />
               </div>
             </div>
-            <div className="text-[10px] font-medium text-slate-500">{d.l}</div>
-            <div className="-mt-1 font-mono text-[10px] text-slate-400">{total}</div>
+            <div className="text-[10px] font-medium text-slate-500">{label}</div>
+            <div className="-mt-1 font-mono text-[10px] text-slate-400">{d.total}</div>
           </div>
         );
       })}

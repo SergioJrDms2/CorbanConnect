@@ -22,6 +22,7 @@ import {
   Users,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Brand } from '../components/Brand';
 import { Card } from '../components/Card';
 import { Field } from '../components/Field';
@@ -29,6 +30,7 @@ import { Section } from '../components/Section';
 import { StatusBadge } from '../components/StatusBadge';
 import { GhostButton, PrimaryButton } from '../components/Buttons';
 import { colorMap } from '../lib/theme';
+import { fetchContractNotifications } from '../lib/contracts';
 import {
   displayCpf,
   formatBRL,
@@ -52,6 +54,29 @@ interface CorbanContractViewProps {
 export function CorbanContractView({ contract, onBack }: CorbanContractViewProps) {
   const hasObservation = !!(contract.ultimaObservacao || contract.motivoRecusa);
   const hasLegalRep = !!(contract.nomeReprLegal || contract.cpfReprLegal);
+
+  const [notifications, setNotifications] = useState<NotificationEvent[]>(contract.notifications);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifError, setNotifError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setNotifLoading(true);
+    setNotifError(null);
+    fetchContractNotifications(contract.id)
+      .then((list) => {
+        if (!cancelled) setNotifications(list);
+      })
+      .catch((e) => {
+        if (!cancelled) setNotifError(e instanceof Error ? e.message : 'Falha ao carregar histórico.');
+      })
+      .finally(() => {
+        if (!cancelled) setNotifLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [contract.id]);
 
   // If it's a card product (RMC), show limits; otherwise show installment-based financials
   const isCardProduct =
@@ -311,13 +336,19 @@ export function CorbanContractView({ contract, onBack }: CorbanContractViewProps
               icon={MessageSquare}
               hint="Régua D+0, D+3, D+7, D+15"
             >
-              {contract.notifications.length === 0 ? (
+              {notifLoading ? (
+                <div className="py-6 text-center text-sm text-slate-500">
+                  Carregando histórico…
+                </div>
+              ) : notifError ? (
+                <div className="py-6 text-center text-sm text-red-600">{notifError}</div>
+              ) : notifications.length === 0 ? (
                 <div className="py-6 text-center text-sm text-slate-500">
                   Nenhuma notificação enviada — contrato sem pendência ativa.
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {contract.notifications.map((n, i) => (
+                  {notifications.map((n, i) => (
                     <NotificationRow key={i} n={n} />
                   ))}
                 </div>

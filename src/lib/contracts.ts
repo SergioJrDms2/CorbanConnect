@@ -1,6 +1,6 @@
 import { STATUS_CONFIG } from './theme';
 import { MOCK_CONTRACTS } from '../data/mockContracts';
-import { supabase } from './supabase';
+import { allowMock, supabase, SupabaseNotConfiguredError } from './supabase';
 import type {
   Contract,
   ContractStatus,
@@ -330,25 +330,26 @@ export function contractToRow(c: Contract, corbanName?: string): ContractRow {
 }
 
 export async function fetchContracts(): Promise<Contract[]> {
-  if (!supabase) return MOCK_CONTRACTS;
+  if (!supabase) {
+    if (allowMock) return MOCK_CONTRACTS;
+    throw new SupabaseNotConfiguredError();
+  }
 
   const { data, error } = await supabase
     .from('contracts')
     .select('*')
     .order('updated_at', { ascending: false });
 
-  if (error) {
-    console.error('Failed to fetch contracts from Supabase:', error.message);
-    return MOCK_CONTRACTS;
-  }
-  if (!data || data.length === 0) return MOCK_CONTRACTS;
-
-  return (data as ContractRow[]).map(rowToContract);
+  if (error) throw new Error(error.message);
+  return (data as ContractRow[] | null)?.map(rowToContract) ?? [];
 }
 
 /**
  * Look up ALL contracts belonging to a CPF + birth combination.
  * A client can have multiple open contracts (e.g. cartão RMC + empréstimo).
+ *
+ * Calls the `get_client_contracts` RPC on the server so that the anon key
+ * cannot read arbitrary rows — the RPC filters by the two required args.
  */
 export async function fetchContractsByCpfAndBirth(
   cpf: string,
@@ -356,58 +357,50 @@ export async function fetchContractsByCpfAndBirth(
 ): Promise<Contract[]> {
   const normalizedCpf = cpf.replace(/\D/g, '');
 
-  const fromMock = () =>
-    MOCK_CONTRACTS.filter(
-      (c) =>
-        c.client.cpf.replace(/\D/g, '') === normalizedCpf && c.client.birth === birth,
-    );
-
-  if (!supabase) return fromMock();
-
-  const { data, error } = await supabase
-    .from('contracts')
-    .select('*')
-    .eq('client_cpf', normalizedCpf)
-    .eq('client_birth', birth)
-    .order('updated_at', { ascending: false });
-
-  if (error) {
-    console.error('Failed to fetch contracts:', error.message);
-    return [];
+  if (!supabase) {
+    if (allowMock) {
+      return MOCK_CONTRACTS.filter(
+        (c) =>
+          c.client.cpf.replace(/\D/g, '') === normalizedCpf && c.client.birth === birth,
+      );
+    }
+    throw new SupabaseNotConfiguredError();
   }
-  if (!data || data.length === 0) return fromMock();
-  return (data as ContractRow[]).map(rowToContract);
+
+  const { data, error } = await supabase.rpc('get_client_contracts', {
+    p_cpf: normalizedCpf,
+    p_birth: birth,
+  });
+
+  if (error) throw new Error(error.message);
+  return (data as ContractRow[] | null)?.map(rowToContract) ?? [];
 }
 
 /**
  * Look up ALL contracts belonging to a Corban by their CNPJ (the identifier
  * extracted from the "NOME PROMOTORA" column of the XLSX — e.g. "64.839.379").
- * Returns an empty array if none found. The Corban portal uses this as login:
- * if at least one contract matches, the Corban is "authenticated".
+ *
+ * Calls the `get_corban_contracts` RPC on the server.
  */
 export async function fetchContractsByCorbanCnpj(cnpj: string): Promise<Contract[]> {
   const normalized = cnpj.replace(/\D/g, '');
   if (!normalized) return [];
 
-  const fromMock = () =>
-    MOCK_CONTRACTS.filter(
-      (c) => (c.corbanCnpj ?? '').replace(/\D/g, '') === normalized,
-    );
-
-  if (!supabase) return fromMock();
-
-  const { data, error } = await supabase
-    .from('contracts')
-    .select('*')
-    .eq('corban_cnpj', normalized)
-    .order('updated_at', { ascending: false });
-
-  if (error) {
-    console.error('Failed to fetch contracts by corban:', error.message);
-    return [];
+  if (!supabase) {
+    if (allowMock) {
+      return MOCK_CONTRACTS.filter(
+        (c) => (c.corbanCnpj ?? '').replace(/\D/g, '') === normalized,
+      );
+    }
+    throw new SupabaseNotConfiguredError();
   }
-  if (!data || data.length === 0) return fromMock();
-  return (data as ContractRow[]).map(rowToContract);
+
+  const { data, error } = await supabase.rpc('get_corban_contracts', {
+    p_cnpj: normalized,
+  });
+
+  if (error) throw new Error(error.message);
+  return (data as ContractRow[] | null)?.map(rowToContract) ?? [];
 }
 
 export interface UpsertResult {
@@ -437,4 +430,44 @@ export async function deleteContract(id: string): Promise<{ error?: string }> {
   if (!supabase) return { error: 'Supabase não configurado.' };
   const { error } = await supabase.from('contracts').delete().eq('id', id);
   return error ? { error: error.message } : {};
+}
+
+// ─── Notifications (live from notification_log) ─────────────────────────────
+
+export interface NotificationLogRow {
+  id: number;
+  contract_id: string;
+  channel: 'whatsapp' | 'sms' | 'email';
+  status: 'delivered' | 'read' | 'pending' | 'failed';
+  reg: string | null;
+  sent_at: string;
+}
+
+export async function fetchContractNotifications(
+  contractId: string,
+): Promise<NotificationEvent[]> {
+  if (!supabase) {
+    if (allowMock) {
+      return MOCK_CONTRACTS.find((c) => c.id === contractId)?.notifications ?? [];
+    }
+    throw new SupabaseNotConfiguredError();
+  }
+
+  const { data, error } = await supabase.rpc('get_contract_notifications', {
+    p_contract_id: contractId,
+  });
+  if (error) throw new Error(error.message);
+
+  return ((data as NotificationLogRow[] | null) ?? []).map((r) => ({
+    channel: r.channel,
+    status: r.status,
+    reg: r.reg ?? '',
+    date: formatSentAt(r.sent_at),
+  }));
+}
+
+function formatSentAt(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} · ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }

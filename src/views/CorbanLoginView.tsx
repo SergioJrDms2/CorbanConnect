@@ -4,6 +4,7 @@ import { Brand } from '../components/Brand';
 import { Card } from '../components/Card';
 import { PrimaryButton } from '../components/Buttons';
 import { fetchContractsByCorbanCnpj } from '../lib/contracts';
+import { isAcceptableCorbanIdentifier } from '../lib/validation';
 import type { Contract } from '../types';
 
 interface CorbanLoginViewProps {
@@ -32,6 +33,14 @@ export function CorbanLoginView({ onBack, onLogin }: CorbanLoginViewProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!canSubmit) return;
+    if (!isAcceptableCorbanIdentifier(digits)) {
+      setError(
+        digits.length === 14
+          ? 'CNPJ inválido. Confira os dígitos.'
+          : 'CNPJ inválido. Informe o raiz (8 dígitos) ou o CNPJ completo (14 dígitos).',
+      );
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
