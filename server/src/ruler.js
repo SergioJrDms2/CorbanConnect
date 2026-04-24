@@ -11,7 +11,6 @@
  *     com um delay aleatório (anti-ban).
  */
 
-import { enrichCorbanCnpjs } from './enrichCorbans.js';
 import cron from 'node-cron';
 import { config } from './config.js';
 import { supabase } from './supabase.js';
@@ -100,9 +99,6 @@ export async function runRulerTick(trigger = 'manual') {
       }
     }
 
-    await enrichCorbanCnpjs().catch(err =>
-      console.warn('[enrich] falhou neste tick:', err.message),
-    );
 
     return { ...stats, trigger };
   } finally {
