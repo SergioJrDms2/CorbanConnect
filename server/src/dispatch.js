@@ -26,6 +26,52 @@ import { config } from './config.js';
 const CONTRACT_FIELDS =
   'id, client_cpf, client_name, client_phone, email_cliente, motivo_recusa, ultima_observacao, corban_cnpj, corban_name, ponto_de_venda, gerente_resp_promotora';
 
+/**
+ * Extrai o raiz do CNPJ (8 dígitos) do campo NOME PROMOTORA.
+ * Ex: "64.839.379 EDLEA BARBOSA" → "64839379"
+ * Retorna null se não encontrar ao menos 8 dígitos no início.
+ */
+function extractCnpjFromField(field) {
+  if (!field) return null;
+  const digits = field.replace(/\D/g, '');
+  return digits.length >= 8 ? digits.slice(0, 8) : null;
+}
+
+/**
+ * Busca o registro do Corban na tabela `corbans` usando a seguinte
+ * prioridade (fonte de verdade = tabela corbans):
+ *   1. corban_cnpj preenchido diretamente no contrato
+ *   2. CNPJ extraído dos dígitos iniciais de corban_name
+ *   3. ponto_de_venda bate com corbans.nome
+ */
+async function lookupCorban(contract) {
+  // 1. corban_cnpj direto
+  const cnpjDirect = contract.corban_cnpj
+    ?? extractCnpjFromField(contract.corban_name);
+
+  if (cnpjDirect) {
+    const { data } = await supabase
+      .from('corbans')
+      .select('email, whatsapp, nome')
+      .eq('cnpj', cnpjDirect)
+      .maybeSingle();
+    if (data) return data;
+  }
+
+  // 2. fallback: ponto_de_venda ou corban_name batem com corbans.nome
+  const nomeToSearch = contract.ponto_de_venda ?? contract.corban_name;
+  if (nomeToSearch) {
+    const { data } = await supabase
+      .from('corbans')
+      .select('email, whatsapp, nome')
+      .eq('nome', nomeToSearch)
+      .maybeSingle();
+    if (data) return data;
+  }
+
+  return null;
+}
+
 export async function dispatchNotification({ contractId, reg = 'D+0', channel = null }) {
   const { data: contract, error } = await supabase
     .from('contracts')
@@ -47,16 +93,8 @@ export async function dispatchNotification({ contractId, reg = 'D+0', channel = 
     return { ok: false, reason: 'client_opt_out' };
   }
 
-  // Corban (para e-mail em CC e/ou contato a exibir)
-  let corbanRow = null;
-  if (contract.corban_cnpj) {
-    const { data } = await supabase
-      .from('corbans')
-      .select('email, whatsapp, nome')
-      .eq('cnpj', contract.corban_cnpj)
-      .maybeSingle();
-    corbanRow = data ?? null;
-  }
+  // Corban — usa corbans como fonte de verdade
+  const corbanRow = await lookupCorban(contract);
 
   const ctx = buildContext(contract, corbanRow, reg);
 
