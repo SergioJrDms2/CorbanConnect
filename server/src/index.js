@@ -13,7 +13,6 @@ import { createApp } from './http.js';
 import { startWhatsApp } from './whatsapp.js';
 import { startRuler } from './ruler.js';
 import { verifyEmailConfig } from './email.js';
-import { enrichCorbanCnpjs } from './enrichCorbans.js';
 
 async function main() {
   console.log('🚀 Corban Connect backend iniciando...');
@@ -43,13 +42,6 @@ async function main() {
   });
 
   startRuler();
-
-  enrichCorbanCnpjs()
-    .then(({ enriched, skipped }) => {
-      if (enriched > 0 || skipped > 0)
-        console.log(`🔍 Enriquecimento CNPJ: ${enriched} atualizados, ${skipped} não encontrados`);
-    })
-    .catch((err) => console.warn('⚠️  Enriquecimento CNPJ falhou:', err.message));
 }
 
 process.on('SIGINT', () => {
