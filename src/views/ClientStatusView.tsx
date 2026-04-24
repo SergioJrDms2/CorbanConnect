@@ -279,7 +279,7 @@ export function ClientStatusView({ contract, onBack }: ClientStatusViewProps) {
                 </div>
               </div>
               <div className="space-y-1 border-t border-white/20 pt-4">
-                
+  
                   href="#"
                   className="-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm font-medium text-white transition-colors hover:bg-white/15"
                 >
