@@ -9,7 +9,6 @@ import { sendWhatsAppMessage, whatsappStatus, latestQr } from './whatsapp.js';
 import { sendEmail, verifyEmailConfig } from './email.js';
 import { dispatchNotification } from './dispatch.js';
 import { runRulerTick, rulerStatus } from './ruler.js';
-import { enrichCorbanCnpjs } from './enrichCorbans.js';
 
 export function createApp() {
   const app = express();
@@ -78,14 +77,6 @@ export function createApp() {
     }
   });
 
-  app.post('/enrich/corbans', async (_req, res) => {
-    try {
-      const result = await enrichCorbanCnpjs();
-      res.json({ ok: true, ...result });
-    } catch (err) {
-      res.status(500).json({ ok: false, error: err instanceof Error ? err.message : String(err) });
-    }
-  });
 
   app.get('/verify/email', async (_req, res) => {
     const v = await verifyEmailConfig();
