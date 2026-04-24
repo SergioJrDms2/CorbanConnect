@@ -54,48 +54,34 @@ O `setup.sql` agora inclui:
 
 ---
 
-## 3. Deploy das Edge Functions + pg_cron
+## 3. Subir o backend de notificações (WhatsApp + E-mail)
 
-Ver `supabase/functions/README.md`. Resumo:
+O envio de mensagens **não** usa provedores pagos (Twilio, Meta, etc.).
+Em vez disso, roda um backend Node.js próprio — ver `server/README.md`.
+Ele faz:
+
+- WhatsApp via Baileys (grátis, pareia por QR como o WhatsApp Web)
+- E-mail via Nodemailer + SMTP de sua preferência (Gmail App Password,
+  SES, servidor próprio). O Corban responsável vai em **CC**.
+- Régua D+0/D+3/D+7/D+15 automática via `node-cron` (substitui o pg_cron).
+
+Deploy resumido:
 
 ```bash
-supabase login
-supabase link --project-ref <REF>
-
-supabase secrets set \
-  WHATSAPP_PROVIDER=twilio \
-  TWILIO_ACCOUNT_SID=... \
-  TWILIO_AUTH_TOKEN=... \
-  TWILIO_WHATSAPP_FROM='whatsapp:+14155238886' \
-  TWILIO_SMS_FROM='+14155238886' \
-  RESEND_API_KEY=... \
-  CORBAN_CONNECT_BASE_URL=https://app.corbanconnect.com.br
-
-supabase functions deploy dispatch-notification
-supabase functions deploy run-ruler
+cd server
+cp .env.example .env   # preencha SUPABASE_*, SMTP_*, INTERNAL_API_TOKEN
+npm install
+npm start              # ou pm2 start src/index.js --name corban-connect-server
 ```
 
-No SQL Editor, ativar o cron horário da régua + retenção mensal:
+No primeiro boot um **QR** é impresso no stdout — escaneie com o número
+oficial em WhatsApp → Aparelhos conectados. A pasta `auth_baileys/`
+guarda as credenciais e deve ser persistida entre restarts.
+
+No SQL Editor, apenas a retenção de logs continua via pg_cron:
 
 ```sql
 create extension if not exists pg_cron;
-create extension if not exists pg_net;
-
-alter database postgres set app.supabase_url     = 'https://<REF>.supabase.co';
-alter database postgres set app.service_role_key = '<SERVICE_ROLE>';
-
-select cron.schedule(
-  'corban-connect-ruler-hourly',
-  '0 * * * *',
-  $$ select net.http_post(
-       url := current_setting('app.supabase_url') || '/functions/v1/run-ruler',
-       headers := jsonb_build_object(
-         'Authorization', 'Bearer ' || current_setting('app.service_role_key'),
-         'Content-Type', 'application/json'
-       ),
-       body := '{}'::jsonb
-     ) $$
-);
 
 select cron.schedule(
   'corban-connect-retention-monthly',
@@ -104,20 +90,30 @@ select cron.schedule(
 );
 ```
 
+Cadastro dos Corbans (e-mails que recebem CC):
+
+```sql
+insert into public.corbans (cnpj, nome, email, whatsapp) values
+  ('64839379', 'EDLEA BARBOSA', 'edlea@promotora.com.br', '5561999990000')
+on conflict (cnpj) do update set
+  nome = excluded.nome,
+  email = excluded.email,
+  whatsapp = excluded.whatsapp;
+```
+
 ---
 
-## 4. WhatsApp Business — aprovação de template (2 semanas)
+## 4. Boas práticas de anti-ban no WhatsApp (Baileys)
 
-A Meta precisa aprovar cada template antes de você poder disparar pelo
-WhatsApp Business. Os textos base estão em
-`supabase/functions/dispatch-notification/templates.ts`. Submeta:
-1. Template D+0 (notificação inicial)
-2. Template D+3 (1º lembrete)
-3. Template D+7 (2º lembrete)
-4. Template D+15 (alerta final)
-
-Enquanto a aprovação não sai, SMS e e-mail funcionam via `dispatch-notification`
-como fallback.
+- **Número dedicado** — chip separado do pessoal, já aquecido com
+  conversas normais.
+- **Warmup** nos primeiros dias: poucas mensagens por hora antes de
+  escalar.
+- Delay aleatório entre disparos (já configurado: 5–15s).
+- Horário comercial (já configurado: 8h–20h pt-BR).
+- Opt-out respeitado (LGPD).
+- Templates com pequena variação de saudação (já implementado).
+- Régua idempotente: nunca manda D+N duas vezes para o mesmo contrato.
 
 ---
 
@@ -160,17 +156,21 @@ Ficam para v2.0.
 ## Checklist pré-launch
 
 - [ ] Chaves do Supabase rotacionadas, `.env.local` removido do histórico
-- [ ] `supabase/setup.sql` aplicado
-- [ ] Edge Functions `dispatch-notification` + `run-ruler` deployadas
-- [ ] Secrets das functions configurados (Twilio/Resend/...)
-- [ ] `pg_cron` agendando régua horária + retenção mensal
-- [ ] Templates WhatsApp submetidos à Meta
+- [ ] `supabase/setup.sql` aplicado (inclui tabela `corbans`)
+- [ ] Backend `server/` rodando (VPS / Railway / Fly) com `pm2` ou systemd
+- [ ] Pasta `auth_baileys/` persistente (volume/disk)
+- [ ] WhatsApp oficial pareado (QR escaneado uma vez)
+- [ ] SMTP configurado e `/verify/email` retornando `{ ok: true }`
+- [ ] Tabela `public.corbans` populada (ao menos os Corbans em produção)
+- [ ] `pg_cron` retenção mensal agendada
 - [ ] Pelo menos 1 usuário interno criado via Supabase Auth
 - [ ] 1º XLSX real carregado com sucesso
-- [ ] Teste e2e: contrato em pendência → notificação chega no celular/e-mail
-  de teste → INSERT em `notification_log` → visível no dashboard interno
-- [ ] Opt-out testado (link no rodapé → para próximos disparos)
+- [ ] Teste e2e: contrato em pendência → `POST /dispatch` → mensagem chega
+      no celular/e-mail → INSERT em `notification_log` → visível no
+      dashboard interno
+- [ ] Teste da régua: `POST /ruler/run` com contrato forçado a D+3
+- [ ] Opt-out testado (insert em `client_opt_outs` → próximo disparo falha)
 - [ ] CI verde em `main`
-- [ ] Deploy Vercel + domínio configurado
+- [ ] Deploy do front (Vercel) + domínio configurado
 - [ ] Central de atendimento da Starbank treinada para redirecionar
-  cliente ao Corban (PRD §13.3 risco alto)
+      cliente ao Corban (PRD §13.3 risco alto)

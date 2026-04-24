@@ -66,6 +66,20 @@ create table if not exists public.client_opt_outs (
   token        text unique     -- token enviado nas mensagens (opcional)
 );
 
+-- Cadastro dos Corbans (CNPJ → dados de contato).
+-- Alimentada manualmente (ou por RPC) para que o backend consiga:
+--   1) colocar o Corban em CC nos e-mails ao cliente
+--   2) reencaminhar respostas do WhatsApp do cliente ao Corban responsável
+-- O XLSX do core não traz e-mail / WhatsApp do Corban, por isso esta tabela.
+create table if not exists public.corbans (
+  cnpj       text primary key,
+  nome       text,
+  email      text,
+  whatsapp   text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
 -- ────────────────────────────────────────────────────────────────────────────
 -- 2. Colunas expandidas (do relatório real do banco + CNPJ do Corban)
 -- ────────────────────────────────────────────────────────────────────────────
@@ -181,6 +195,11 @@ create trigger contracts_set_updated_at
   before update on public.contracts
   for each row execute function public.set_updated_at();
 
+drop trigger if exists corbans_set_updated_at on public.corbans;
+create trigger corbans_set_updated_at
+  before update on public.corbans
+  for each row execute function public.set_updated_at();
+
 -- ────────────────────────────────────────────────────────────────────────────
 -- 5. Row Level Security
 --
@@ -193,9 +212,15 @@ alter table public.contracts        enable row level security;
 alter table public.notification_log enable row level security;
 alter table public.xlsx_uploads     enable row level security;
 alter table public.client_opt_outs  enable row level security;
+alter table public.corbans          enable row level security;
 
 drop policy if exists "opt_outs_auth_all" on public.client_opt_outs;
 create policy "opt_outs_auth_all" on public.client_opt_outs for all
+  using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
+
+drop policy if exists "corbans_auth_all" on public.corbans;
+create policy "corbans_auth_all" on public.corbans for all
   using (auth.role() = 'authenticated')
   with check (auth.role() = 'authenticated');
 

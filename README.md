@@ -6,12 +6,23 @@ Plataforma de notificações automáticas e portal de acompanhamento de contrato
 
 ## Stack
 
-- React 18 + TypeScript
-- Vite 5
-- Tailwind CSS 3
-- Supabase (auth + Postgres + RLS)
+**Front (`/`):**
+- React 18 + TypeScript, Vite 5, Tailwind CSS 3
+- Supabase (auth do dashboard interno + RPCs para leitura por CPF/CNPJ)
 - SheetJS (`xlsx`) para upload de carteira
 - lucide-react (ícones)
+
+**Backend (`/server`):**
+- Node.js 20+, Express
+- [Baileys](https://github.com/WhiskeySockets/Baileys) para WhatsApp (grátis)
+- Nodemailer + SMTP para e-mail
+- `node-cron` para a régua D+0/D+3/D+7/D+15
+- Supabase service role para gravar em `notification_log`
+
+**Banco (Supabase):**
+- Postgres + RLS restritiva
+- Tabelas `contracts`, `notification_log`, `xlsx_uploads`, `client_opt_outs`, `corbans`
+- RPCs `security definer` para lookups por CPF/CNPJ
 
 ## Portais disponíveis
 
